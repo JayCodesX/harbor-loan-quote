@@ -43,7 +43,6 @@ function App() {
   const [sessionId] = useState(() => getOrCreateSessionId())
 
   const isAdmin = authState?.role === 'ADMIN'
-  const isV3Parity = true
 
   const endpointPreview = useMemo(() => ({
     login: `${API_BASE_URL}/auth/login`,
@@ -70,9 +69,9 @@ function App() {
     }
 
     if (nextAuthState) {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextAuthState))
+      window.sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextAuthState))
     } else {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      window.sessionStorage.removeItem(AUTH_STORAGE_KEY)
     }
   }
 
@@ -503,14 +502,12 @@ function App() {
 
       const csv = await response.text()
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-      const url = window.URL.createObjectURL(blob)
-      const link = window.document.createElement('a')
-      link.href = url
-      link.download = 'mortgage-desk-report.csv'
-      window.document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'mortgage-desk-report.csv'
+      a.click()
+      URL.revokeObjectURL(url)
     } catch (error) {
       setErrorMessage(error.message || 'Unable to export this report.')
     } finally {
@@ -564,75 +561,72 @@ function App() {
     if (typeof document === 'undefined') {
       return undefined
     }
-    document.body.classList.toggle('v3-parity-mode', isV3Parity)
+    document.body.classList.add('v3-parity-mode')
     return () => {
       document.body.classList.remove('v3-parity-mode')
     }
-  }, [isV3Parity])
+  }, [])
 
-  if (isV3Parity) {
-    return (
-      <AdminApp
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        authState={authState}
-        onSignOut={handleSignOut}
-        loginForm={loginForm}
-        setLoginForm={setLoginForm}
-        handleLoginSubmit={handleLoginSubmit}
-        handleInput={handleInput}
-        loadingTarget={loadingTarget}
-        errorMessage={errorMessage}
-        summary={summary}
-        fetchSummary={fetchSummary}
-        borrowerForm={borrowerForm}
-        setBorrowerForm={setBorrowerForm}
-        createBorrower={createBorrower}
-        fetchBorrowers={fetchBorrowers}
-        borrowers={borrowers}
-        createdBorrower={createdBorrower}
-        loanForm={loanForm}
-        setLoanForm={setLoanForm}
-        createLoan={createLoan}
-        fetchLoan={fetchLoan}
-        loanLookupId={loanLookupId}
-        setLoanLookupId={setLoanLookupId}
-        loanResult={loanResult}
-        productForm={productForm}
-        setProductForm={setProductForm}
-        products={products}
-        editingProductId={editingProductId}
-        saveProduct={saveProduct}
-        startEditProduct={startEditProduct}
-        resetProductForm={resetProductForm}
-        deleteProduct={deleteProduct}
-        loadProducts={loadProducts}
-        lenderForm={lenderForm}
-        setLenderForm={setLenderForm}
-        lenders={lenders}
-        editingLenderId={editingLenderId}
-        agentForm={agentForm}
-        setAgentForm={setAgentForm}
-        agents={agents}
-        editingAgentId={editingAgentId}
-        loadPartners={loadPartners}
-        savePartner={savePartner}
-        startEditPartner={startEditPartner}
-        resetPartnerForm={resetPartnerForm}
-        deletePartner={deletePartner}
-        syncPartners={syncPartners}
-        reportForm={reportForm}
-        setReportForm={setReportForm}
-        reportResult={reportResult}
-        runReport={runReport}
-        exportReport={exportReport}
-        endpointPreview={endpointPreview}
-        formatCurrency={formatCurrency}
-        isAdmin={isAdmin}
-      />
-    )
-  }
-
+  return (
+    <AdminApp
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      authState={authState}
+      onSignOut={handleSignOut}
+      loginForm={loginForm}
+      setLoginForm={setLoginForm}
+      handleLoginSubmit={handleLoginSubmit}
+      handleInput={handleInput}
+      loadingTarget={loadingTarget}
+      errorMessage={errorMessage}
+      summary={summary}
+      fetchSummary={fetchSummary}
+      borrowerForm={borrowerForm}
+      setBorrowerForm={setBorrowerForm}
+      createBorrower={createBorrower}
+      fetchBorrowers={fetchBorrowers}
+      borrowers={borrowers}
+      createdBorrower={createdBorrower}
+      loanForm={loanForm}
+      setLoanForm={setLoanForm}
+      createLoan={createLoan}
+      fetchLoan={fetchLoan}
+      loanLookupId={loanLookupId}
+      setLoanLookupId={setLoanLookupId}
+      loanResult={loanResult}
+      productForm={productForm}
+      setProductForm={setProductForm}
+      products={products}
+      editingProductId={editingProductId}
+      saveProduct={saveProduct}
+      startEditProduct={startEditProduct}
+      resetProductForm={resetProductForm}
+      deleteProduct={deleteProduct}
+      loadProducts={loadProducts}
+      lenderForm={lenderForm}
+      setLenderForm={setLenderForm}
+      lenders={lenders}
+      editingLenderId={editingLenderId}
+      agentForm={agentForm}
+      setAgentForm={setAgentForm}
+      agents={agents}
+      editingAgentId={editingAgentId}
+      loadPartners={loadPartners}
+      savePartner={savePartner}
+      startEditPartner={startEditPartner}
+      resetPartnerForm={resetPartnerForm}
+      deletePartner={deletePartner}
+      syncPartners={syncPartners}
+      reportForm={reportForm}
+      setReportForm={setReportForm}
+      reportResult={reportResult}
+      runReport={runReport}
+      exportReport={exportReport}
+      endpointPreview={endpointPreview}
+      formatCurrency={formatCurrency}
+      isAdmin={isAdmin}
+    />
+  )
 }
 
 export default App

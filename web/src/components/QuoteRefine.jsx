@@ -72,20 +72,20 @@ export default function QuoteRefine({
                   <h2>Step 1: Borrower profile</h2>
                   <div className="borrower-v3-stepper-fields">
                     <article className="v3-landing-field">
-                      <p>Annual income</p>
-                      <input type="number" name="annualIncome" value={refineForm?.annualIncome || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
+                      <label htmlFor="annualIncome">Annual income</label>
+                      <input id="annualIncome" type="number" name="annualIncome" value={refineForm?.annualIncome || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
                     </article>
                     <article className="v3-landing-field">
-                      <p>Cash reserves</p>
-                      <input type="number" name="cashReserves" value={refineForm?.cashReserves || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
+                      <label htmlFor="cashReserves">Cash reserves</label>
+                      <input id="cashReserves" type="number" name="cashReserves" value={refineForm?.cashReserves || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
                     </article>
                     <article className="v3-landing-field">
-                      <p>Monthly debts</p>
-                      <input type="number" name="monthlyDebts" value={refineForm?.monthlyDebts || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
+                      <label htmlFor="monthlyDebts">Monthly debts</label>
+                      <input id="monthlyDebts" type="number" name="monthlyDebts" value={refineForm?.monthlyDebts || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
                     </article>
                     <article className="v3-landing-field">
-                      <p>First time buyer</p>
-                      <select name="firstTimeBuyer" value={refineForm?.firstTimeBuyer || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input">
+                      <label htmlFor="firstTimeBuyer">First time buyer</label>
+                      <select id="firstTimeBuyer" name="firstTimeBuyer" value={refineForm?.firstTimeBuyer || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input">
                         <option value="">Select</option>
                         <option value="true">Yes</option>
                         <option value="false">No</option>
@@ -100,20 +100,20 @@ export default function QuoteRefine({
                   <h2>Step 2: Financials</h2>
                   <div className="borrower-v3-stepper-fields">
                     <article className="v3-landing-field">
-                      <p>Credit score</p>
-                      <input type="number" name="creditScore" value={refineForm?.creditScore || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="300–850" min="300" max="850" />
+                      <label htmlFor="creditScore">Credit score</label>
+                      <input id="creditScore" type="number" name="creditScore" value={refineForm?.creditScore || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="300–850" min="300" max="850" />
                     </article>
                     <article className="v3-landing-field">
-                      <p>VA eligible</p>
-                      <select name="vaEligible" value={refineForm?.vaEligible || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input">
+                      <label htmlFor="vaEligible">VA eligible</label>
+                      <select id="vaEligible" name="vaEligible" value={refineForm?.vaEligible || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input">
                         <option value="">Select</option>
                         <option value="true">Yes</option>
                         <option value="false">No</option>
                       </select>
                     </article>
                     <article className="v3-landing-field">
-                      <p>Est. funding date</p>
-                      <input type="date" name="estimatedFundingDate" value={refineForm?.estimatedFundingDate || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" />
+                      <label htmlFor="estimatedFundingDate">Est. funding date</label>
+                      <input id="estimatedFundingDate" type="date" name="estimatedFundingDate" value={refineForm?.estimatedFundingDate || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" />
                     </article>
                   </div>
                 </>
@@ -124,8 +124,8 @@ export default function QuoteRefine({
                   <h2>Step 3: Property details</h2>
                   <div className="borrower-v3-stepper-fields">
                     <article className="v3-landing-field">
-                      <p>State</p>
-                      <select name="stateCode" value={refineForm?.stateCode || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input">
+                      <label htmlFor="stateCode">State</label>
+                      <select id="stateCode" name="stateCode" value={refineForm?.stateCode || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input">
                         <option value="">Select</option>
                         {locationOptions?.map((loc) => (
                           <option key={loc.stateCode} value={loc.stateCode}>{loc.stateCode}</option>
@@ -133,8 +133,8 @@ export default function QuoteRefine({
                       </select>
                     </article>
                     <article className="v3-landing-field">
-                      <p>County</p>
-                      <select name="countyName" value={refineForm?.countyName || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" disabled={!selectedState}>
+                      <label htmlFor="countyName">County</label>
+                      <select id="countyName" name="countyName" value={refineForm?.countyName || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" disabled={!selectedState}>
                         <option value="">Select</option>
                         {counties.map((county) => (
                           <option key={county} value={county}>{county}</option>

@@ -42,8 +42,6 @@ function App() {
   const [policyVersions, setPolicyVersions] = useState(null)
   const [authState, setAuthState] = useState(() => getStoredAuth())
   const [sessionId] = useState(() => getOrCreateSessionId())
-  const isV3Parity = true
-
   const endpoints = useMemo(() => ({
     register: `${API_BASE_URL}/auth/register`,
     login: `${API_BASE_URL}/auth/login`,
@@ -78,9 +76,9 @@ const saveAuthState = (nextAuthState) => {
     }
 
     if (nextAuthState) {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextAuthState))
+      window.sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextAuthState))
     } else {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      window.sessionStorage.removeItem(AUTH_STORAGE_KEY)
     }
   }
 
@@ -316,17 +314,6 @@ const saveAuthState = (nextAuthState) => {
         headers: { 'X-Session-Id': sessionId },
       })
     } catch {
-    }
-  }
-
-  const fetchQuoteStatus = async (quoteId) => {
-    const result = await callApi('quote-status', `${endpoints.quoteBase}/${quoteId}`, {
-      method: 'GET',
-      headers: { 'X-Session-Id': sessionId },
-    })
-
-    if (result) {
-      setQuoteResult(result)
     }
   }
 
@@ -780,18 +767,6 @@ const saveAuthState = (nextAuthState) => {
   }, [authState?.accessToken])
 
   useEffect(() => {
-    if (!isQuoteInFlight(quoteResult)) {
-      return undefined
-    }
-
-    const timer = window.setInterval(() => {
-      fetchQuoteStatus(quoteResult.id)
-    }, 4000)
-
-    return () => window.clearInterval(timer)
-  }, [quoteResult?.id, quoteResult?.processingStatus])
-
-  useEffect(() => {
     if (typeof window === 'undefined' || !quoteResult?.id || !isQuoteInFlight(quoteResult)) {
       return undefined
     }
@@ -816,16 +791,6 @@ const saveAuthState = (nextAuthState) => {
     if (typeof document === 'undefined') {
       return undefined
     }
-    document.body.classList.toggle('v3-parity-mode', isV3Parity)
-    return () => {
-      document.body.classList.remove('v3-parity-mode')
-    }
-  }, [isV3Parity])
-
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      return undefined
-    }
     const className = `demo-view-${activeView}`
     document.body.classList.add(className)
     return () => {
@@ -833,50 +798,47 @@ const saveAuthState = (nextAuthState) => {
     }
   }, [activeView])
 
-  if (isV3Parity) {
-    return (
-      <BorrowerApp
-        activeView={activeView}
-        setActiveView={setActiveView}
-        publicQuoteForm={publicQuoteForm}
-        setPublicQuoteForm={setPublicQuoteForm}
-        handlePublicQuoteSubmit={handlePublicQuoteSubmit}
-        locationOptions={locationOptions}
-        quoteResult={quoteResult}
-        loadingTarget={loadingTarget}
-        handleInput={handleInput}
-        loginForm={loginForm}
-        setLoginForm={setLoginForm}
-        registerForm={registerForm}
-        setRegisterForm={setRegisterForm}
-        handleLoginSubmit={handleLoginSubmit}
-        handleRegisterSubmit={handleRegisterSubmit}
-        authState={authState}
-        onSignOut={handleSignOut}
-        refineForm={refineForm}
-        setRefineForm={setRefineForm}
-        handleRefineQuoteSubmit={handleRefineQuoteSubmit}
-        handleRefineProgressSave={handleRefineProgressSave}
-        matchedLenders={matchedLenders}
-        matchedAgents={matchedAgents}
-        errorMessage={errorMessage}
-        activeCalculator={activeCalculator}
-        setActiveCalculator={setActiveCalculator}
-        mortgageForm={mortgageForm}
-        setMortgageForm={setMortgageForm}
-        mortgageResult={mortgageResult}
-        amortizationForm={amortizationForm}
-        setAmortizationForm={setAmortizationForm}
-        amortizationResult={amortizationResult}
-        handleMortgageSubmit={handleMortgageSubmit}
-        handleAmortizationSubmit={handleAmortizationSubmit}
-        quoteHistory={quoteHistory}
-        onSelectBorrowerQuote={loadBorrowerQuote}
-        onDeleteBorrowerQuote={handleDeleteBorrowerQuote}
-      />
-    )
-  }
-
+  return (
+    <BorrowerApp
+      activeView={activeView}
+      setActiveView={setActiveView}
+      publicQuoteForm={publicQuoteForm}
+      setPublicQuoteForm={setPublicQuoteForm}
+      handlePublicQuoteSubmit={handlePublicQuoteSubmit}
+      locationOptions={locationOptions}
+      quoteResult={quoteResult}
+      loadingTarget={loadingTarget}
+      handleInput={handleInput}
+      loginForm={loginForm}
+      setLoginForm={setLoginForm}
+      registerForm={registerForm}
+      setRegisterForm={setRegisterForm}
+      handleLoginSubmit={handleLoginSubmit}
+      handleRegisterSubmit={handleRegisterSubmit}
+      authState={authState}
+      onSignOut={handleSignOut}
+      refineForm={refineForm}
+      setRefineForm={setRefineForm}
+      handleRefineQuoteSubmit={handleRefineQuoteSubmit}
+      handleRefineProgressSave={handleRefineProgressSave}
+      matchedLenders={matchedLenders}
+      matchedAgents={matchedAgents}
+      errorMessage={errorMessage}
+      activeCalculator={activeCalculator}
+      setActiveCalculator={setActiveCalculator}
+      mortgageForm={mortgageForm}
+      setMortgageForm={setMortgageForm}
+      mortgageResult={mortgageResult}
+      amortizationForm={amortizationForm}
+      setAmortizationForm={setAmortizationForm}
+      amortizationResult={amortizationResult}
+      handleMortgageSubmit={handleMortgageSubmit}
+      handleAmortizationSubmit={handleAmortizationSubmit}
+      quoteHistory={quoteHistory}
+      onSelectBorrowerQuote={loadBorrowerQuote}
+      onDeleteBorrowerQuote={handleDeleteBorrowerQuote}
+    />
+  )
 }
 
 export default App

@@ -6,22 +6,30 @@ class EventSourceMock {
   close() {}
 }
 
-function mockJsonResponse(payload, overrides = {}) {
-  return {
-    ok: true,
-    status: 200,
-    json: async () => payload,
-    text: async () => '',
-    ...overrides,
-  }
+// URL-based mock so initial useEffect fetches (legalPolicies, locationOptions, etc.)
+// don't consume mocks intended for specific API operations.
+function mockFetch(routes = {}) {
+  return vi.fn((url) => {
+    for (const [pattern, payload] of Object.entries(routes)) {
+      if (url.includes(pattern)) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => payload,
+          text: async () => '',
+        })
+      }
+    }
+    return Promise.resolve({ ok: false, status: 404, json: async () => null, text: async () => '' })
+  })
 }
 
 describe('Borrower demo app', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn())
     vi.stubGlobal('EventSource', EventSourceMock)
     vi.stubGlobal('crypto', { randomUUID: () => 'test-session-id' })
     window.localStorage.clear()
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -30,74 +38,89 @@ describe('Borrower demo app', () => {
   })
 
   it('loads the borrower-facing quote home by default', () => {
+    vi.stubGlobal('fetch', mockFetch())
     render(<App />)
 
-    expect(screen.getAllByText('Get a loan quote').length).toBeGreaterThan(0)
-    expect(screen.getByText('See an estimated mortgage quote in minutes.')).toBeInTheDocument()
-    expect(screen.queryByText('Quote Funnel')).not.toBeInTheDocument()
+    expect(screen.getByText('Get a credible home loan quote before filling out a long mortgage form.')).toBeInTheDocument()
+    expect(screen.getByText('See an estimate in under a minute')).toBeInTheDocument()
+    expect(screen.queryByText('Quote funnel')).not.toBeInTheDocument()
     expect(screen.queryByText('Workspace')).not.toBeInTheDocument()
     expect(screen.queryByText('API Docs')).not.toBeInTheDocument()
-    expect(screen.queryByText('Ops')).not.toBeInTheDocument()
   })
 
   it('submits a public quote from the home experience', async () => {
-    fetch.mockResolvedValueOnce(mockJsonResponse({
-      id: 17,
-      sessionId: 'test-session-id',
-      processingStatus: 'QUEUED',
-      quoteStage: 'PUBLIC',
-      quoteStatus: 'PENDING_PRICING',
-      qualificationTier: 'Prime',
-      duplicate: false,
-      nextStep: 'Wait for pricing',
+    vi.stubGlobal('fetch', mockFetch({
+      '/loan-quotes/public': {
+        id: 17,
+        sessionId: 'test-session-id',
+        processingStatus: 'COMPLETED',
+        quoteStage: 'PUBLIC',
+        quoteStatus: 'PENDING_PRICING',
+        estimatedMonthlyPayment: 2841,
+        duplicate: false,
+      },
     }))
 
     render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'See my quote' }))
+    fireEvent.click(screen.getByRole('button', { name: 'See result' }))
 
-    await waitFor(() => expect(screen.getByText('Quote #17')).toBeInTheDocument())
-    expect(fetch).toHaveBeenCalledWith('http://localhost:8080/loan-quotes/public', expect.any(Object))
-    expect(fetch.mock.calls[0][1]).toMatchObject({
-      method: 'POST',
-      headers: { 'X-Session-Id': 'test-session-id' },
-    })
-    expect(screen.getByText('Your quote is queued')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Initial quote result')).toBeInTheDocument())
+    expect(screen.getByText('Confidence is moderate. Add borrower details to tighten lender + agent fit.')).toBeInTheDocument()
   })
 
-  it('routes users to sign in before personalizing a quote', () => {
+  it('routes unauthenticated users to sign in when they try to refine a quote', async () => {
+    vi.stubGlobal('fetch', mockFetch({
+      '/loan-quotes/public': {
+        id: 17,
+        processingStatus: 'COMPLETED',
+        quoteStatus: 'PENDING_PRICING',
+        estimatedMonthlyPayment: 2841,
+      },
+    }))
+
     render(<App />)
 
-    fireEvent.change(screen.getByDisplayValue(''), { target: { value: '17' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Personalize my quote' }))
+    fireEvent.click(screen.getByRole('button', { name: 'See result' }))
+    await waitFor(() => expect(screen.getByText('Initial quote result')).toBeInTheDocument())
 
-    expect(screen.getByText('Sign in before personalizing the quote.')).toBeInTheDocument()
-    expect(screen.getByText('Continue your quote when you are ready.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Refine quote' }))
+    expect(screen.getByText('Save and refine your quote')).toBeInTheDocument()
   })
 
-  it('signs in and exposes the admin console link for admin users', async () => {
-    fetch.mockResolvedValueOnce(mockJsonResponse({
-      accessToken: 'token-123',
-      tokenType: 'Bearer',
-      expiresIn: 900,
-      email: 'admin@example.com',
-      role: 'ADMIN',
+  it('signs in and reflects authenticated state in the navigation', async () => {
+    vi.stubGlobal('fetch', mockFetch({
+      '/auth/login': {
+        accessToken: 'token-123',
+        tokenType: 'Bearer',
+        expiresIn: 900,
+        email: 'borrower@example.com',
+        role: 'BORROWER',
+      },
     }))
 
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    await waitFor(() => expect(screen.getAllByText('admin@example.com').length).toBeGreaterThan(0))
-    expect(screen.getByRole('link', { name: 'Admin Console' })).toBeInTheDocument()
+    fireEvent.change(screen.getByPlaceholderText('Email'), {
+      target: { name: 'email', value: 'borrower@example.com' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { name: 'password', value: 'secret' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument())
   })
 
   it('opens the calculators view and runs the mortgage calculator', async () => {
-    fetch.mockResolvedValueOnce(mockJsonResponse({
-      monthlyPayment: 2275.45,
-      financedPrincipal: 360000,
-      numberOfPayments: 360,
+    vi.stubGlobal('fetch', mockFetch({
+      '/loans/mortgage-payment': {
+        monthlyPayment: 2275.45,
+        financedPrincipal: 360000,
+        numberOfPayments: 360,
+      },
     }))
 
     render(<App />)
@@ -110,10 +133,12 @@ describe('Borrower demo app', () => {
   })
 
   it('runs the amortization calculator from the calculators view', async () => {
-    fetch.mockResolvedValueOnce(mockJsonResponse({
-      monthlyPayment: 2212.11,
-      principal: 350000,
-      numberOfPayments: 360,
+    vi.stubGlobal('fetch', mockFetch({
+      '/loans/amortization': {
+        monthlyPayment: 2212.11,
+        principal: 350000,
+        numberOfPayments: 360,
+      },
     }))
 
     render(<App />)

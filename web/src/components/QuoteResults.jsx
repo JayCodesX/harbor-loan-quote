@@ -2,17 +2,16 @@ import BorrowerShell from './BorrowerShell'
 import './BorrowerStyles.css'
 import { formatCurrency } from '../lib/demoApp'
 
-const fmtDollars = (n) => `$${Math.round(n).toLocaleString('en-US')}`
-
 export default function QuoteResults({
   setActiveView,
   authState,
   onSignOut,
   quoteResult,
 }) {
-  const principalInterest = quoteResult?.estimatedMonthlyPayment ? Math.round(quoteResult.estimatedMonthlyPayment * 0.7) : 1992
-  const taxesInsurance = quoteResult?.estimatedMonthlyPayment ? Math.round(quoteResult.estimatedMonthlyPayment * 0.22) : 624
-  const hoaFees = quoteResult?.estimatedMonthlyPayment ? Math.round(quoteResult.estimatedMonthlyPayment * 0.08) : 225
+  const payment = quoteResult?.estimatedMonthlyPayment
+  const principalInterest = payment ? Math.round(payment * 0.70) : null
+  const taxesInsurance = payment ? Math.round(payment * 0.22) : null
+  const hoaFees = payment ? Math.round(payment * 0.08) : null
 
   return (
     <BorrowerShell setActiveView={setActiveView} authState={authState} onSignOut={onSignOut}>
@@ -21,7 +20,7 @@ export default function QuoteResults({
           <div>
             <h1 className="borrower-v3-hero-title">Initial quote result</h1>
             <p className="borrower-v3-hero-metric">
-              Estimated monthly payment: <strong>{quoteResult?.estimatedMonthlyPayment ? fmtDollars(quoteResult.estimatedMonthlyPayment) : '$2,841'}</strong>
+              Estimated monthly payment: <strong>{payment ? formatCurrency(payment) : '--'}</strong>
             </p>
             <p className="borrower-v3-hero-copy">Confidence is moderate. Add borrower details to tighten lender + agent fit.</p>
           </div>
@@ -30,12 +29,19 @@ export default function QuoteResults({
 
         <section className="borrower-v3-grid-2">
           <article className="borrower-v3-card borrower-v3-panel">
-            <h2 className="borrower-v3-panel-title">Payment breakdown</h2>
-            <div className="borrower-v3-breakdown">
-              <div className="borrower-v3-breakdown-row"><span>Principal + Interest</span><strong>{fmtDollars(principalInterest)}</strong></div>
-              <div className="borrower-v3-breakdown-row"><span>Taxes + Insurance</span><strong>{fmtDollars(taxesInsurance)}</strong></div>
-              <div className="borrower-v3-breakdown-row"><span>HOA + Fees</span><strong>{fmtDollars(hoaFees)}</strong></div>
-            </div>
+            <h2 className="borrower-v3-panel-title">Estimated payment breakdown</h2>
+            {principalInterest !== null ? (
+              <>
+                <div className="borrower-v3-breakdown">
+                  <div className="borrower-v3-breakdown-row"><span>Principal + Interest</span><strong>{formatCurrency(principalInterest)}</strong></div>
+                  <div className="borrower-v3-breakdown-row"><span>Taxes + Insurance</span><strong>{formatCurrency(taxesInsurance)}</strong></div>
+                  <div className="borrower-v3-breakdown-row"><span>HOA + Fees</span><strong>{formatCurrency(hoaFees)}</strong></div>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.5rem' }}>Illustrative estimates only. Actual amounts vary by property.</p>
+              </>
+            ) : (
+              <p>Submit a quote to see a payment breakdown.</p>
+            )}
           </article>
 
           <article className="borrower-v3-card borrower-v3-panel">

@@ -74,7 +74,7 @@ export function getStoredAuth() {
     return null
   }
 
-  const raw = window.localStorage.getItem(AUTH_STORAGE_KEY)
+  const raw = window.sessionStorage.getItem(AUTH_STORAGE_KEY)
   if (!raw) {
     return null
   }
@@ -82,7 +82,7 @@ export function getStoredAuth() {
   try {
     return JSON.parse(raw)
   } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    window.sessionStorage.removeItem(AUTH_STORAGE_KEY)
     return null
   }
 }

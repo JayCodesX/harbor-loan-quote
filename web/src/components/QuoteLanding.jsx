@@ -79,8 +79,9 @@ export default function QuoteLanding({
 
             <div className="v3-landing-fields">
               <article className="v3-landing-field">
-                <p>Home price</p>
+                <label htmlFor="homePrice">Home price</label>
                 <input
+                  id="homePrice"
                   type="number"
                   name="homePrice"
                   value={publicQuoteForm?.homePrice || ''}
@@ -90,8 +91,9 @@ export default function QuoteLanding({
                 />
               </article>
               <article className="v3-landing-field">
-                <p>Down payment</p>
+                <label htmlFor="downPayment">Down payment</label>
                 <input
+                  id="downPayment"
                   type="number"
                   name="downPayment"
                   value={publicQuoteForm?.downPayment || ''}
@@ -101,8 +103,9 @@ export default function QuoteLanding({
                 />
               </article>
               <article className="v3-landing-field">
-                <p>ZIP code</p>
+                <label htmlFor="zipCode">ZIP code</label>
                 <input
+                  id="zipCode"
                   type="text"
                   name="zipCode"
                   value={publicQuoteForm?.zipCode || ''}
@@ -112,8 +115,9 @@ export default function QuoteLanding({
                 />
               </article>
               <article className="v3-landing-field">
-                <p>Credit profile</p>
+                <label htmlFor="creditProfile">Credit profile</label>
                 <select
+                  id="creditProfile"
                   name="creditProfile"
                   value={publicQuoteForm?.creditProfile || 'Good'}
                   onChange={handleInput?.(setPublicQuoteForm)}

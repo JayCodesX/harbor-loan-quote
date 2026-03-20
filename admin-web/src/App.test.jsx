@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+const AUTH_KEY = 'harbor-loan-quote-auth'
+
 function mockSummary() {
   return {
     auth: { totalUsers: 3, adminUsers: 1, standardUsers: 2 },
@@ -13,15 +15,36 @@ function mockSummary() {
   }
 }
 
-function mockJsonResponse(payload, overrides = {}) {
-  return { ok: true, status: 200, json: async () => payload, text: async () => '', ...overrides }
+// URL-based mock — never gets "consumed", avoids ordering issues with concurrent fetches.
+function mockFetch(routes = {}) {
+  return vi.fn((url) => {
+    for (const [pattern, payload] of Object.entries(routes)) {
+      if (url.includes(pattern)) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => payload,
+          text: async () => '',
+        })
+      }
+    }
+    return Promise.resolve({ ok: false, status: 404, json: async () => null, text: async () => '' })
+  })
+}
+
+function seedAdminSession() {
+  window.sessionStorage.setItem(AUTH_KEY, JSON.stringify({
+    accessToken: 'admin-token',
+    role: 'ADMIN',
+    email: 'admin@example.com',
+  }))
 }
 
 describe('Admin console', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn())
     vi.stubGlobal('crypto', { randomUUID: () => 'admin-session-id' })
     window.localStorage.clear()
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -30,60 +53,78 @@ describe('Admin console', () => {
   })
 
   it('shows a direct admin sign-in form when there is no session', () => {
+    vi.stubGlobal('fetch', mockFetch())
     render(<App />)
-    expect(screen.getByText(/Sign in to the admin console/i)).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to Mortgage Desk/i)).toBeInTheDocument()
   })
 
   it('signs in directly and loads the dashboard', async () => {
-    fetch.mockResolvedValueOnce(mockJsonResponse({ accessToken: 'admin-token', tokenType: 'Bearer', expiresIn: 900, email: 'admin@example.com', role: 'ADMIN' }))
-      .mockResolvedValueOnce(mockJsonResponse(mockSummary()))
+    vi.stubGlobal('fetch', mockFetch({
+      '/auth/login': { accessToken: 'admin-token', tokenType: 'Bearer', expiresIn: 900, email: 'admin@example.com', role: 'ADMIN' },
+      '/metrics/admin/summary': mockSummary(),
+    }))
 
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: /sign in as admin/i }))
-    await waitFor(() => expect(screen.getByText(/Run the complete borrower quote demo from the admin console/i)).toBeInTheDocument())
+
+    // Fill in required fields so HTML5 validation does not block submission in jsdom.
+    fireEvent.change(screen.getByPlaceholderText('admin@harborloanquotes.com'), {
+      target: { name: 'email', value: 'admin@example.com' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { name: 'password', value: 'secret' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => expect(screen.getByText('Quote funnel')).toBeInTheDocument())
+    expect(screen.getByText('Operational highlights')).toBeInTheDocument()
   })
 
   it('rejects non-admin sessions', () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'user-token', role: 'USER', email: 'user@example.com' }))
+    window.sessionStorage.setItem(AUTH_KEY, JSON.stringify({ accessToken: 'user-token', role: 'USER', email: 'user@example.com' }))
+    vi.stubGlobal('fetch', mockFetch())
     render(<App />)
-    expect(screen.getByText(/does not have the `ADMIN` role/i)).toBeInTheDocument()
+    expect(screen.getByText(/does not have the ADMIN role/i)).toBeInTheDocument()
   })
 
   it('shows pricing tab and can load products', async () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@example.com' }))
-    fetch.mockResolvedValueOnce(mockJsonResponse(mockSummary()))
-      .mockResolvedValueOnce(mockJsonResponse([{ id: 2, programCode: 'FHA', productName: 'FHA Streamline', baseRate: 5.875, active: true }]))
+    seedAdminSession()
+    vi.stubGlobal('fetch', mockFetch({
+      '/metrics/admin/summary': mockSummary(),
+      '/admin/products': [{ id: 2, programCode: 'FHA', productName: 'FHA Streamline', baseRate: 5.875, active: true }],
+    }))
 
     render(<App />)
-    await waitFor(() => expect(screen.getByText(/Run the complete borrower quote demo from the admin console/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Quote funnel')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /pricing/i }))
     await waitFor(() => expect(screen.getByText(/FHA Streamline/i)).toBeInTheDocument())
   })
 
   it('shows reports tab and can run a report', async () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@example.com' }))
-    fetch.mockResolvedValueOnce(mockJsonResponse(mockSummary()))
-      .mockResolvedValueOnce(mockJsonResponse({ title: 'Pricing products', columns: ['id', 'programCode'], rows: [{ id: 1, programCode: 'CONVENTIONAL' }], totalRows: 1 }))
+    seedAdminSession()
+    vi.stubGlobal('fetch', mockFetch({
+      '/metrics/admin/summary': mockSummary(),
+      '/admin/reports/query': { totalRecords: 5, quotesStarted: 3, refined: 1 },
+    }))
 
     render(<App />)
-    await waitFor(() => expect(screen.getByText(/Run the complete borrower quote demo from the admin console/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Quote funnel')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /reports/i }))
     fireEvent.click(screen.getByRole('button', { name: /run report/i }))
-    await waitFor(() => expect(screen.getByText(/Pricing products/i)).toBeInTheDocument())
-    expect(screen.getByText('CONVENTIONAL')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Report output')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /Export CSV/i })).toBeInTheDocument()
   })
 
-  it('shows workspace and docs tabs for internal tooling', async () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@example.com' }))
-    fetch.mockResolvedValueOnce(mockJsonResponse(mockSummary()))
-      .mockResolvedValueOnce(mockJsonResponse([{ id: 1, firstName: 'Jay', lastName: 'Carter', email: 'user@example.com', creditScore: 741 }]))
+  it('shows the workspace tab with borrower and loan sections', async () => {
+    seedAdminSession()
+    vi.stubGlobal('fetch', mockFetch({
+      '/metrics/admin/summary': mockSummary(),
+    }))
 
     render(<App />)
-    await waitFor(() => expect(screen.getByText(/Run the complete borrower quote demo from the admin console/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Quote funnel')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /workspace/i }))
-    fireEvent.click(screen.getByRole('button', { name: /load borrowers/i }))
-    await waitFor(() => expect(screen.getByText(/Jay Carter/i)).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /docs/i }))
-    expect(screen.getByText(/\/api\/admin\/products/)).toBeInTheDocument()
+    expect(screen.getByText('Borrower workspace')).toBeInTheDocument()
+    expect(screen.getByText('Loan workspace')).toBeInTheDocument()
+    expect(screen.getByText('Loan lookup')).toBeInTheDocument()
   })
 })
