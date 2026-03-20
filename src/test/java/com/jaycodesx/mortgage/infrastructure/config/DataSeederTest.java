@@ -21,10 +21,10 @@ class DataSeederTest {
 
         when(loanQuoteRepository.count()).thenReturn(0L);
         when(loanQuoteService.createPublicQuote(any())).thenReturn(new LoanQuoteResponseDto(
-                11L, "session-seed", "COMPLETED", false, "PUBLIC", "ESTIMATED", false, false,
+                11L, null, "session-seed", "COMPLETED", false, "PUBLIC", "ESTIMATED", false, false,
                 BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "60614", "CONVENTIONAL",
                 "PRIMARY_RESIDENCE", 30, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                "Market Estimate", "next", null
+                "Market Estimate", "next", null, null, null
         ));
 
         CommandLineRunner runner = dataSeeder.seedData(loanQuoteRepository, loanQuoteService);

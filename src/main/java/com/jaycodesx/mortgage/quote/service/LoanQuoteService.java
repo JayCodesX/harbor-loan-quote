@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -103,7 +104,49 @@ public class LoanQuoteService {
         return refineQuote(id, null, request);
     }
 
+    public LoanQuoteResponseDto refineLatestQuote(String sessionId, String userId, QuoteRefinementRequestDto request) {
+        LoanQuote quote = (userId != null
+                ? loanQuoteRepository.findTopByUserIdOrderByUpdatedAtDesc(userId)
+                : loanQuoteRepository.findTopBySessionIdOrderByIdDesc(sessionId))
+                .orElseThrow(() -> new IllegalArgumentException("No quote found for session"));
+        return refineQuote(quote.getId(), sessionId, userId, request);
+    }
+
+    public List<LoanQuoteResponseDto> getQuotesByUserId(String userId) {
+        return loanQuoteRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .map(q -> toResponse(
+                        q,
+                        borrowerQuoteProfileRepository.findByLoanQuoteId(q.getId()),
+                        mortgageLeadRepository.findByLoanQuoteId(q.getId()),
+                        false,
+                        q.getSessionId()
+                ))
+                .toList();
+    }
+
+    public Optional<LoanQuoteResponseDto> getCurrentQuoteByUserId(String userId) {
+        return loanQuoteRepository.findTopByUserIdOrderByUpdatedAtDesc(userId)
+                .map(q -> toResponse(
+                        q,
+                        borrowerQuoteProfileRepository.findByLoanQuoteId(q.getId()),
+                        mortgageLeadRepository.findByLoanQuoteId(q.getId()),
+                        false,
+                        q.getSessionId()
+                ));
+    }
+
+    public List<LoanQuoteResponseDto> attachSessionToUser(String sessionId, String userId) {
+        List<LoanQuote> unlinked = loanQuoteRepository.findBySessionIdAndUserIdIsNull(sessionId);
+        unlinked.forEach(q -> q.setUserId(userId));
+        loanQuoteRepository.saveAll(unlinked);
+        return getQuotesByUserId(userId);
+    }
+
     public LoanQuoteResponseDto refineQuote(Long id, String sessionId, QuoteRefinementRequestDto request) {
+        return refineQuote(id, sessionId, null, request);
+    }
+
+    public LoanQuoteResponseDto refineQuote(Long id, String sessionId, String userId, QuoteRefinementRequestDto request) {
         LoanQuote quote = loanQuoteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Quote not found for id: " + id));
 
@@ -119,6 +162,9 @@ public class LoanQuoteService {
         }
 
         quote.setSessionId(resolvedSessionId);
+        if (userId != null) {
+            quote.setUserId(userId);
+        }
         quote.setRequestFingerprint(fingerprint);
         quote.setProcessingStatus("QUEUED");
         quote.setQuoteStatus("REFINEMENT_REQUESTED");
@@ -189,6 +235,7 @@ public class LoanQuoteService {
     private LoanQuoteResponseDto markDuplicate(LoanQuoteResponseDto response, String sessionId) {
         return new LoanQuoteResponseDto(
                 response.id(),
+                response.userId(),
                 sessionId,
                 response.processingStatus(),
                 true,
@@ -209,7 +256,9 @@ public class LoanQuoteService {
                 response.estimatedCashToClose(),
                 response.qualificationTier(),
                 response.nextStep(),
-                response.lead()
+                response.lead(),
+                response.createdAt(),
+                response.updatedAt()
         );
     }
 
@@ -230,6 +279,7 @@ public class LoanQuoteService {
 
         return new LoanQuoteResponseDto(
                 quote.getId(),
+                quote.getUserId(),
                 sessionId,
                 defaultProcessingStatus(quote.getProcessingStatus()),
                 duplicate,
@@ -255,7 +305,9 @@ public class LoanQuoteService {
                         item.getLoanQuoteId(),
                         item.getLeadStatus(),
                         item.getLeadSource()
-                )).orElse(null)
+                )).orElse(null),
+                quote.getCreatedAt(),
+                quote.getUpdatedAt()
         );
     }
 

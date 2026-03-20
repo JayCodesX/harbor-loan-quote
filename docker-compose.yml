@@ -12,61 +12,61 @@ services:
       <<: *java-env
       DB_URL: jdbc:mysql://mysql:3306/mortgage_quote_workflow?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
       CORS_ALLOWED_ORIGINS: http://localhost:8088,https://localhost:8443
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      APP_MESSAGING_ENABLED: ${APP_MESSAGING_ENABLED:-false}
-      APP_MESSAGING_CONSUMER_ENABLED: ${APP_MESSAGING_CONSUMER_ENABLED:-false}
+      APP_MESSAGING_ENABLED: ${APP_MESSAGING_ENABLED:-true}
+      APP_MESSAGING_CONSUMER_ENABLED: ${APP_MESSAGING_CONSUMER_ENABLED:-true}
       APP_MESSAGING_QUEUE_NAME: quote-pricing-requests
       APP_PRICING_RESULT_QUEUE_NAME: quote-pricing-results
       APP_LEAD_RESULT_QUEUE_NAME: quote-lead-results
       AWS_ENDPOINT: http://localstack:4566
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      APP_SERVICE_TOKEN_SECRET: local-dev-pricing-service-secret-1234567890
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      APP_SERVICE_TOKEN_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_SERVICE_TOKEN_ISSUER: mortgage-loan-api
       APP_SERVICE_TOKEN_AUDIENCE: pricing-service
       APP_SERVICE_TOKEN_SCOPE: pricing:write
-      APP_PRICING_RESULT_TOKEN_SECRET: local-dev-pricing-result-secret-1234567890
+      APP_PRICING_RESULT_TOKEN_SECRET: ${APP_PRICING_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_PRICING_RESULT_TOKEN_ISSUER: pricing-service
       APP_PRICING_RESULT_TOKEN_AUDIENCE: mortgage-loan-api
       APP_PRICING_RESULT_TOKEN_SCOPE: quote:write
-      APP_LEAD_RESULT_TOKEN_SECRET: local-dev-lead-result-secret-1234567890
+      APP_LEAD_RESULT_TOKEN_SECRET: ${APP_LEAD_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_LEAD_RESULT_TOKEN_ISSUER: lead-service
       APP_LEAD_RESULT_TOKEN_AUDIENCE: mortgage-loan-api
       APP_LEAD_RESULT_TOKEN_SCOPE: lead:write
-      APP_NOTIFICATION_TOKEN_SECRET: local-dev-notification-service-secret-1234567890
+      APP_NOTIFICATION_TOKEN_SECRET: ${APP_NOTIFICATION_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_NOTIFICATION_TOKEN_AUDIENCE: notification-service
       APP_NOTIFICATION_TOKEN_SCOPE: notification:write
       APP_BORROWER_SERVICE_BASE_URL: http://borrower-service:8087
-      APP_BORROWER_SERVICE_SECRET: local-dev-pricing-service-secret-1234567890
+      APP_BORROWER_SERVICE_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_BORROWER_SERVICE_AUDIENCE: borrower-service
       APP_BORROWER_SERVICE_SCOPE: borrower:read
-      APP_USER_TOKEN_SECRET: local-dev-user-token-secret-1234567890
+      APP_USER_TOKEN_SECRET: ${APP_USER_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_USER_TOKEN_PROVIDER: ${APP_USER_TOKEN_PROVIDER:-internal}
       APP_USER_TOKEN_ISSUER: auth-service
       APP_USER_TOKEN_AUDIENCE: mortgage-loan-api
       APP_USER_TOKEN_JWK_SET_URI: ${APP_USER_TOKEN_JWK_SET_URI:-}
       APP_INTERNAL_ADMIN_BORROWER_BASE_URL: http://borrower-service:8087
-      APP_INTERNAL_ADMIN_BORROWER_SECRET: local-dev-pricing-service-secret-1234567890
+      APP_INTERNAL_ADMIN_BORROWER_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_INTERNAL_ADMIN_BORROWER_AUDIENCE: borrower-service
       APP_INTERNAL_ADMIN_BORROWER_SCOPE: borrower:read
       APP_INTERNAL_ADMIN_PRICING_BASE_URL: http://pricing-service:8084
-      APP_INTERNAL_ADMIN_PRICING_SECRET: local-dev-pricing-service-secret-1234567890
+      APP_INTERNAL_ADMIN_PRICING_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_INTERNAL_ADMIN_PRICING_AUDIENCE: pricing-service
       APP_INTERNAL_ADMIN_PRICING_SCOPE: pricing:write
       APP_INTERNAL_ADMIN_LEAD_BASE_URL: http://lead-service:8085
-      APP_INTERNAL_ADMIN_LEAD_SECRET: local-dev-lead-service-secret-1234567890
+      APP_INTERNAL_ADMIN_LEAD_SECRET: ${APP_LEAD_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_INTERNAL_ADMIN_LEAD_AUDIENCE: lead-service
       APP_INTERNAL_ADMIN_LEAD_SCOPE: lead:write
       APP_INTERNAL_ADMIN_AUTH_BASE_URL: http://auth-service:8086
-      APP_INTERNAL_ADMIN_AUTH_SECRET: local-dev-user-token-secret-1234567890
+      APP_INTERNAL_ADMIN_AUTH_SECRET: ${APP_USER_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_INTERNAL_ADMIN_AUTH_AUDIENCE: mortgage-loan-api
       APP_INTERNAL_ADMIN_AUTH_SCOPE: auth:read
       APP_INTERNAL_ADMIN_NOTIFICATION_BASE_URL: http://notification-service:8089
-      APP_INTERNAL_ADMIN_NOTIFICATION_SECRET: local-dev-notification-service-secret-1234567890
+      APP_INTERNAL_ADMIN_NOTIFICATION_SECRET: ${APP_NOTIFICATION_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_INTERNAL_ADMIN_NOTIFICATION_AUDIENCE: notification-service
       APP_INTERNAL_ADMIN_NOTIFICATION_SCOPE: notification:write
     depends_on:
@@ -95,8 +95,8 @@ services:
       <<: *java-env
       DB_URL: jdbc:mysql://mysql:3306/mortgage_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USERNAME: root
-      DB_PASSWORD: root
-      APP_USER_TOKEN_SECRET: local-dev-user-token-secret-1234567890
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      APP_USER_TOKEN_SECRET: ${APP_USER_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_USER_TOKEN_PROVIDER: ${APP_USER_TOKEN_PROVIDER:-internal}
       APP_USER_TOKEN_ISSUER: auth-service
       APP_USER_TOKEN_AUDIENCE: mortgage-loan-api
@@ -124,13 +124,13 @@ services:
       <<: *java-env
       DB_URL: jdbc:mysql://mysql:3306/mortgage_borrower?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USERNAME: root
-      DB_PASSWORD: root
-      APP_USER_TOKEN_SECRET: local-dev-user-token-secret-1234567890
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      APP_USER_TOKEN_SECRET: ${APP_USER_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_USER_TOKEN_PROVIDER: ${APP_USER_TOKEN_PROVIDER:-internal}
       APP_USER_TOKEN_ISSUER: auth-service
       APP_USER_TOKEN_AUDIENCE: mortgage-loan-api
       APP_USER_TOKEN_JWK_SET_URI: ${APP_USER_TOKEN_JWK_SET_URI:-}
-      APP_SERVICE_TOKEN_SECRET: local-dev-pricing-service-secret-1234567890
+      APP_SERVICE_TOKEN_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_SERVICE_TOKEN_ISSUER: mortgage-loan-api
       APP_SERVICE_TOKEN_AUDIENCE: borrower-service
       APP_SERVICE_TOKEN_SCOPE: borrower:read
@@ -157,7 +157,7 @@ services:
       <<: *java-env
       DB_URL: jdbc:mysql://mysql:3306/mortgage_pricing?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       APP_MESSAGING_ENABLED: true
@@ -165,21 +165,21 @@ services:
       APP_MESSAGING_QUEUE_NAME: quote-pricing-requests
       AWS_ENDPOINT: http://localstack:4566
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
       APP_LEAD_MESSAGING_ENABLED: true
       APP_LEAD_MESSAGING_QUEUE_NAME: quote-lead-requests
       APP_PRICING_RESULT_MESSAGING_ENABLED: true
       APP_PRICING_RESULT_QUEUE_NAME: quote-pricing-results
-      APP_SERVICE_TOKEN_SECRET: local-dev-pricing-service-secret-1234567890
+      APP_SERVICE_TOKEN_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_SERVICE_TOKEN_ISSUER: mortgage-loan-api
       APP_SERVICE_TOKEN_AUDIENCE: pricing-service
       APP_SERVICE_TOKEN_SCOPE: pricing:write
-      APP_OUTBOUND_SERVICE_TOKEN_SECRET: local-dev-lead-service-secret-1234567890
+      APP_OUTBOUND_SERVICE_TOKEN_SECRET: ${APP_LEAD_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_OUTBOUND_SERVICE_TOKEN_ISSUER: pricing-service
       APP_OUTBOUND_SERVICE_TOKEN_AUDIENCE: lead-service
       APP_OUTBOUND_SERVICE_TOKEN_SCOPE: lead:write
-      APP_PRICING_RESULT_TOKEN_SECRET: local-dev-pricing-result-secret-1234567890
+      APP_PRICING_RESULT_TOKEN_SECRET: ${APP_PRICING_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_PRICING_RESULT_TOKEN_ISSUER: pricing-service
       APP_PRICING_RESULT_TOKEN_AUDIENCE: mortgage-loan-api
       APP_PRICING_RESULT_TOKEN_SCOPE: quote:write
@@ -210,7 +210,7 @@ services:
       <<: *java-env
       DB_URL: jdbc:mysql://mysql:3306/mortgage_lead?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       APP_MESSAGING_ENABLED: true
@@ -220,13 +220,13 @@ services:
       APP_LEAD_RESULT_QUEUE_NAME: quote-lead-results
       AWS_ENDPOINT: http://localstack:4566
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      APP_SERVICE_TOKEN_SECRET: local-dev-lead-service-secret-1234567890
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      APP_SERVICE_TOKEN_SECRET: ${APP_LEAD_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_SERVICE_TOKEN_ISSUER: pricing-service
       APP_SERVICE_TOKEN_AUDIENCE: lead-service
       APP_SERVICE_TOKEN_SCOPE: lead:write
-      APP_OUTBOUND_SERVICE_TOKEN_SECRET: local-dev-lead-result-secret-1234567890
+      APP_OUTBOUND_SERVICE_TOKEN_SECRET: ${APP_LEAD_RESULT_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_OUTBOUND_SERVICE_TOKEN_ISSUER: lead-service
       APP_OUTBOUND_SERVICE_TOKEN_AUDIENCE: mortgage-loan-api
       APP_OUTBOUND_SERVICE_TOKEN_SCOPE: lead:write
@@ -262,9 +262,9 @@ services:
       APP_MESSAGING_QUEUE_NAME: quote-notification-events
       AWS_ENDPOINT: http://localstack:4566
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      APP_SERVICE_TOKEN_SECRET: local-dev-notification-service-secret-1234567890
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      APP_SERVICE_TOKEN_SECRET: ${APP_NOTIFICATION_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_SERVICE_TOKEN_ISSUER: mortgage-loan-api
       APP_SERVICE_TOKEN_AUDIENCE: notification-service
       APP_SERVICE_TOKEN_SCOPE: notification:write
@@ -395,7 +395,7 @@ services:
     container_name: mortgage-loan-mysql
     mem_limit: 768m
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: mortgage_quote_workflow
     ports:
       - "3307:3306"

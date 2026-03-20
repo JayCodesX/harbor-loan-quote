@@ -42,10 +42,10 @@ class LoanQuoteControllerTest {
                 30
         );
         LoanQuoteResponseDto responseDto = new LoanQuoteResponseDto(
-                1L, "session-1", "COMPLETED", false, "PUBLIC", "ESTIMATED", false, false,
+                1L, null, "session-1", "COMPLETED", false, "PUBLIC", "ESTIMATED", false, false,
                 BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "60614", "CONVENTIONAL",
                 "PRIMARY_RESIDENCE", 30, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                "Market Estimate", "next", null
+                "Market Estimate", "next", null, null, null
         );
         when(loanQuoteService.createPublicQuote("session-1", request)).thenReturn(responseDto);
 
@@ -60,10 +60,10 @@ class LoanQuoteControllerTest {
     @Test
     void getQuoteReturnsFoundOrNotFound() {
         LoanQuoteResponseDto responseDto = new LoanQuoteResponseDto(
-                1L, "session-1", "COMPLETED", false, "PUBLIC", "ESTIMATED", false, false,
+                1L, null, "session-1", "COMPLETED", false, "PUBLIC", "ESTIMATED", false, false,
                 BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "60614", "CONVENTIONAL",
                 "PRIMARY_RESIDENCE", 30, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                "Market Estimate", "next", null
+                "Market Estimate", "next", null, null, null
         );
         when(loanQuoteService.getQuote(1L)).thenReturn(Optional.of(responseDto));
         when(loanQuoteService.getQuote(2L)).thenReturn(Optional.empty());
@@ -80,10 +80,10 @@ class LoanQuoteControllerTest {
                 new BigDecimal("24000.00"), true, false
         );
         LoanQuoteResponseDto responseDto = new LoanQuoteResponseDto(
-                1L, "session-1", "COMPLETED", false, "REFINED", "LEAD_READY", true, true,
+                1L, null, "session-1", "COMPLETED", false, "REFINED", "LEAD_READY", true, true,
                 BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "60614", "CONVENTIONAL",
                 "PRIMARY_RESIDENCE", 30, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                "Prime", "next", null
+                "Prime", "next", null, null, null
         );
         when(loanQuoteService.refineQuote(1L, "session-1", request)).thenReturn(responseDto);
 
@@ -96,10 +96,10 @@ class LoanQuoteControllerTest {
     @Test
     void streamQuoteReturnsUpdateEvent() {
         LoanQuoteResponseDto responseDto = new LoanQuoteResponseDto(
-                1L, "session-1", "PROCESSING", false, "PUBLIC", "REQUESTED", false, false,
+                1L, null, "session-1", "PROCESSING", false, "PUBLIC", "REQUESTED", false, false,
                 BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "60614", "CONVENTIONAL",
                 "PRIMARY_RESIDENCE", 30, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                "Market Estimate", "next", null
+                "Market Estimate", "next", null, null, null
         );
         when(loanQuoteService.getQuote(1L)).thenReturn(Optional.of(responseDto), Optional.of(responseDto));
 

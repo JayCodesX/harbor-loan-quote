@@ -3,10 +3,12 @@ package com.jaycodesx.mortgage.infrastructure.config;
 import com.jaycodesx.mortgage.auth.model.AuthUser;
 import com.jaycodesx.mortgage.auth.repository.AuthUserRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
 public class AuthDataSeeder implements CommandLineRunner {
 
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();

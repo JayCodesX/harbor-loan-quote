@@ -3,9 +3,11 @@ package com.jaycodesx.mortgage.quote.dto;
 import com.jaycodesx.mortgage.lead.dto.MortgageLeadResponseDto;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public record LoanQuoteResponseDto(
         Long id,
+        String userId,
         String sessionId,
         String processingStatus,
         boolean duplicate,
@@ -26,6 +28,8 @@ public record LoanQuoteResponseDto(
         BigDecimal estimatedCashToClose,
         String qualificationTier,
         String nextStep,
-        MortgageLeadResponseDto lead
+        MortgageLeadResponseDto lead,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
 }

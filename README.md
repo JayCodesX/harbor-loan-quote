@@ -1,10 +1,10 @@
-# Mortgage Loan API
+# Harbor Loan Quotes
 
 Mortgage quote and lead-generation platform with a borrower-facing React app, a separate admin app, an edge Nginx proxy, and Spring Boot microservices.
 
 Additional docs:
-- [Architecture diagrams](/Users/jonathan.mascio/Projects/mortgage-loan-api/docs/architecture.md)
-- [Operations runbook](/Users/jonathan.mascio/Projects/mortgage-loan-api/docs/ops-runbook.md)
+- [Architecture diagrams](./docs/architecture.md)
+- [Operations runbook](./docs/ops-runbook.md)
 
 ## Runtime Overview
 - `web`: borrower-facing React + Vite app served by Nginx
@@ -114,7 +114,7 @@ Owns:
 - `lead-service` -> `mortgage_lead`
 - `notification-service` -> Redis only
 
-This is now a true per-service database layout for persisted service-owned data.
+Each service owns its own database schema — no cross-service table access.
 
 ## Messaging Topology
 Queues created in LocalStack SQS:
@@ -128,7 +128,7 @@ Queues created in LocalStack SQS:
 - `quote-notification-events-dlq`
 
 ### Message contract hardening
-All asynchronous message payloads now include:
+All asynchronous message payloads include:
 - `schemaVersion`
 - `messageId`
 
@@ -171,11 +171,13 @@ The borrower-facing frontend generates and persists a session ID and sends it on
 ## Metrics And Admin Surface
 
 ### Borrower-facing app
-The public app is now borrower-first and intentionally hides internal platform views.
+The public app is borrower-first and intentionally hides internal platform views.
 It focuses on:
 - guided public quote request
 - borrower quote refinement after sign-in
+- my quotes history
 - public calculators
+- lender and agent match directory
 
 ### Admin app
 The separate admin app at `/admin/` displays:
@@ -184,11 +186,12 @@ The separate admin app at `/admin/` displays:
 - pricing product distribution
 - lead status distribution
 - system snapshot metrics
+- lender and agent directory management
 
 ### Admin summary endpoint
 - `GET /api/metrics/admin/summary`
 
-Admin access now requires an `ADMIN` role token.
+Admin access requires an `ADMIN` role token.
 
 This endpoint aggregates:
 - quote metrics from `api`
@@ -229,7 +232,7 @@ make down
 ```
 
 ### Why the integration env file exists
-[.env.integration](/Users/jonathan.mascio/Projects/mortgage-loan-api/.env.integration) forces the async quote flow on for local demo and CI runs so `api` publishes pricing jobs consistently.
+[.env.integration](./.env.integration) forces the async quote flow on for local demo and CI runs so `api` publishes pricing jobs consistently.
 
 ## Testing
 
@@ -250,7 +253,7 @@ cd admin-web && npm run test:ci
 ```
 
 ### Browser end-to-end tests
-The Playwright suite lives in [e2e](/Users/jonathan.mascio/Projects/mortgage-loan-api/e2e).
+The Playwright suite lives in [e2e](./e2e).
 
 Install once:
 ```bash
@@ -261,7 +264,6 @@ npx playwright install chromium
 
 Run against the full integration stack:
 ```bash
-cd /Users/jonathan.mascio/Projects/mortgage-loan-api
 docker compose --env-file .env.integration --profile integration up -d --build
 cd e2e
 npm run test
@@ -284,7 +286,7 @@ make smoke
 What it verifies:
 - borrower quote flow
 - borrower auth redirect before personalization
-- seeded admin login
+- admin login
 - admin workspace access
 
 ### Make targets
@@ -302,7 +304,7 @@ Covered flows:
 - admin workspace access
 
 ## CI
-[Jenkinsfile](/Users/jonathan.mascio/Projects/mortgage-loan-api/Jenkinsfile) now runs:
+[Jenkinsfile](./Jenkinsfile) runs:
 - JUnit suites for all Java services
 - frontend unit tests for `web` and `admin-web`
 - frontend production builds
@@ -317,7 +319,9 @@ Source:
 Focus:
 - public quote flow
 - refined quote flow
+- my quotes history
 - calculators
+- lender and agent match directory
 - login/register
 - quote status updates through notification SSE or polling fallback
 
@@ -328,6 +332,7 @@ Source:
 Focus:
 - operational visibility
 - borrower, quote, lead, and pricing metrics
+- lender and agent directory management
 
 ## Java Namespace
 All Java services use:
@@ -500,6 +505,18 @@ admin-web
 - `GET /api/notifications/quotes/{id}`
 - `GET /api/notifications/quotes/{id}/events`
 
+### Borrower quote history
+- `GET /api/borrower/quotes`
+
+### Directory
+- `GET /api/directory/locations`
+- `GET /api/directory/agents`
+- `GET /api/directory/lenders`
+
+### Admin directory management
+- `GET /admin/agents`
+- `GET /admin/lenders`
+
 ### Metrics
 - `GET /api/metrics/quotes`
 - `GET /api/metrics/admin/summary`
@@ -509,20 +526,17 @@ admin-web
 
 ### Start the full stack
 ```bash
-cd <your-project-folder>/mortgage-loan-api
 docker compose up -d --build
 ```
 
 ### Start only what you need
 Example auth and quote verification stack:
 ```bash
-cd <your-project-folder>/mortgage-loan-api
 docker compose up -d --build mysql redis localstack api auth-service borrower-service pricing-service lead-service notification-service web admin-web edge
 ```
 
 ### Start the optional OIDC profile with Keycloak
 ```bash
-cd <your-project-folder>/mortgage-loan-api
 APP_USER_TOKEN_PROVIDER=oidc \
 APP_USER_TOKEN_ISSUER=http://keycloak:8080/realms/mortgage-loan-api \
 APP_USER_TOKEN_AUDIENCE=mortgage-loan-api-web \
@@ -535,9 +549,9 @@ Local Keycloak URLs:
 - admin console: `http://localhost:18080/admin`
 
 Imported demo credentials:
-- admin: `admin` / `admin`
-- admin user: `admin@jaycodesx.dev` / `StrongPass123!`
-- test user: `jay` / `StrongPass123!`
+- Keycloak console: `admin` / `admin`
+- admin user: `admin@example.com` / `StrongPass123!`
+- test user: `testuser` / `StrongPass123!`
 
 ### Stop everything
 ```bash
@@ -564,14 +578,14 @@ mvn -Dmaven.repo.local=.m2 test
 
 ### Borrower app
 ```bash
-cd <your-project-folder>/mortgage-loan-api/web
+cd ./web
 npm install
 npm run build
 ```
 
 ### Admin app
 ```bash
-cd <your-project-folder>/mortgage-loan-api/admin-web
+cd ./admin-web
 npm install
 npm run build
 ```
@@ -593,13 +607,4 @@ Replay DLQ messages:
 ```
 
 For a fuller operator workflow, see:
-- [Operations runbook](/Users/jonathan.mascio/Projects/mortgage-loan-api/docs/ops-runbook.md)
-
-## Resume-Relevant Highlights
-- Asynchronous mortgage quote workflow using LocalStack SQS, Redis, and Spring Boot services
-- Separate borrower-facing and admin frontends routed through Nginx
-- Session-aware quote deduplication with Redis-backed in-flight request control
-- Persisted pricing catalog simulating an external mortgage pricing engine integration
-- Internal JWT and optional OIDC/Keycloak support for protected service boundaries
-- Service-owned databases for auth, borrower, pricing, and lead data
-- Metrics aggregation and admin analytics surface across multiple services
+- [Operations runbook](./docs/ops-runbook.md)

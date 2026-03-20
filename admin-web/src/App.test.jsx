@@ -35,7 +35,7 @@ describe('Admin console', () => {
   })
 
   it('signs in directly and loads the dashboard', async () => {
-    fetch.mockResolvedValueOnce(mockJsonResponse({ accessToken: 'admin-token', tokenType: 'Bearer', expiresIn: 900, email: 'admin@jaycodesx.dev', role: 'ADMIN' }))
+    fetch.mockResolvedValueOnce(mockJsonResponse({ accessToken: 'admin-token', tokenType: 'Bearer', expiresIn: 900, email: 'admin@example.com', role: 'ADMIN' }))
       .mockResolvedValueOnce(mockJsonResponse(mockSummary()))
 
     render(<App />)
@@ -44,13 +44,13 @@ describe('Admin console', () => {
   })
 
   it('rejects non-admin sessions', () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'user-token', role: 'USER', email: 'jay@jaycodesx.dev' }))
+    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'user-token', role: 'USER', email: 'user@example.com' }))
     render(<App />)
     expect(screen.getByText(/does not have the `ADMIN` role/i)).toBeInTheDocument()
   })
 
   it('shows pricing tab and can load products', async () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@jaycodesx.dev' }))
+    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@example.com' }))
     fetch.mockResolvedValueOnce(mockJsonResponse(mockSummary()))
       .mockResolvedValueOnce(mockJsonResponse([{ id: 2, programCode: 'FHA', productName: 'FHA Streamline', baseRate: 5.875, active: true }]))
 
@@ -61,7 +61,7 @@ describe('Admin console', () => {
   })
 
   it('shows reports tab and can run a report', async () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@jaycodesx.dev' }))
+    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@example.com' }))
     fetch.mockResolvedValueOnce(mockJsonResponse(mockSummary()))
       .mockResolvedValueOnce(mockJsonResponse({ title: 'Pricing products', columns: ['id', 'programCode'], rows: [{ id: 1, programCode: 'CONVENTIONAL' }], totalRows: 1 }))
 
@@ -74,9 +74,9 @@ describe('Admin console', () => {
   })
 
   it('shows workspace and docs tabs for internal tooling', async () => {
-    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@jaycodesx.dev' }))
+    window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify({ accessToken: 'admin-token', role: 'ADMIN', email: 'admin@example.com' }))
     fetch.mockResolvedValueOnce(mockJsonResponse(mockSummary()))
-      .mockResolvedValueOnce(mockJsonResponse([{ id: 1, firstName: 'Jay', lastName: 'Carter', email: 'jay.carter@jaycodesx.dev', creditScore: 741 }]))
+      .mockResolvedValueOnce(mockJsonResponse([{ id: 1, firstName: 'Jay', lastName: 'Carter', email: 'user@example.com', creditScore: 741 }]))
 
     render(<App />)
     await waitFor(() => expect(screen.getByText(/Run the complete borrower quote demo from the admin console/i)).toBeInTheDocument())

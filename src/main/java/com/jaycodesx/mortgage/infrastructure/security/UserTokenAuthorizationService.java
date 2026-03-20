@@ -44,6 +44,10 @@ public class UserTokenAuthorizationService {
         resolveTokenContext(authorizationHeader);
     }
 
+    public String extractSubject(String authorizationHeader) {
+        return resolveTokenContext(authorizationHeader).subject();
+    }
+
     public void requireAdminUser(String authorizationHeader) {
         TokenContext tokenContext = resolveTokenContext(authorizationHeader);
         if (!tokenContext.roles().contains("ADMIN")) {
@@ -65,10 +69,15 @@ public class UserTokenAuthorizationService {
     }
 
     private TokenContext validateInternalToken(String token) {
-        Jws<Claims> claimsJws = Jwts.parser()
-                .verifyWith(signingKey)
-                .build()
-                .parseSignedClaims(token);
+        Jws<Claims> claimsJws;
+        try {
+            claimsJws = Jwts.parser()
+                    .verifyWith(signingKey)
+                    .build()
+                    .parseSignedClaims(token);
+        } catch (io.jsonwebtoken.JwtException ex) {
+            throw new IllegalArgumentException("Invalid or expired user token", ex);
+        }
 
         Claims claims = claimsJws.getPayload();
         if (!properties.issuer().equals(claims.getIssuer())) {

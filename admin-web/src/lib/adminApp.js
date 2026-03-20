@@ -1,27 +1,20 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
-export const AUTH_STORAGE_KEY = 'mortgage-loan-api-auth'
-export const SESSION_STORAGE_KEY = 'mortgage-loan-api-session-id'
+export const AUTH_STORAGE_KEY = 'harbor-loan-quote-auth'
+export const SESSION_STORAGE_KEY = 'harbor-loan-quote-session-id'
 export const palette = ['#0b5ed7', '#1d7a69', '#f59f28', '#cf4f4f', '#6c757d']
 
 export const defaultAdminLogin = {
-  email: 'admin@jaycodesx.dev',
-  password: 'StrongPass123!',
-}
-
-export const defaultQuoteForm = {
-  homePrice: '525000',
-  downPayment: '105000',
-  zipCode: '75201',
-  loanProgram: 'CONVENTIONAL',
-  propertyUse: 'PRIMARY_RESIDENCE',
-  termYears: '30',
+  email: '',
+  password: '',
 }
 
 export const defaultBorrowerForm = {
-  firstName: 'Jay',
-  lastName: 'Harper',
-  email: 'jay.harper@jaycodesx.dev',
-  creditScore: '741',
+  firstName: '',
+  lastName: '',
+  email: '',
+  creditScore: '0',
+  stateCode: '',
+  countyName: '',
 }
 
 export const defaultLoanForm = {
@@ -34,19 +27,46 @@ export const defaultLoanForm = {
 
 export const defaultProductForm = {
   programCode: 'CONVENTIONAL',
-  productName: 'Demo 30-Year Fixed',
+  productName: '',
   baseRate: '6.1250',
+  active: 'true',
+}
+
+export const defaultPartnerForm = {
+  displayName: '',
+  companyName: '',
+  email: '',
+  phone: '',
+  stateCode: 'WA',
+  countyName: 'King',
+  city: '',
+  specialty: '',
+  licenseNumber: '',
+  nmlsId: '',
+  rankingScore: '92',
+  responseSlaHours: '4',
+  languages: 'English',
+  websiteUrl: '',
   active: 'true',
 }
 
 export const defaultReportForm = {
   reportType: 'PRODUCTS',
+  preset: '',
   search: '',
   activeOnly: 'false',
   status: '',
   minCreditScore: '',
   maxCreditScore: '',
   programCode: '',
+  stateCode: '',
+  countyName: '',
+  dateFrom: '',
+  dateTo: '',
+  sortBy: 'id',
+  sortDirection: 'ASC',
+  page: '1',
+  pageSize: '25',
 }
 
 export function getStoredAuth() {

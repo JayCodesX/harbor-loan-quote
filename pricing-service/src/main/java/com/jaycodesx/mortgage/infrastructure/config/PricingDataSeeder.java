@@ -7,12 +7,14 @@ import com.jaycodesx.mortgage.pricing.repository.PricingAdjustmentRuleRepository
 import com.jaycodesx.mortgage.pricing.repository.PricingProductRepository;
 import com.jaycodesx.mortgage.pricing.repository.RateSheetRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
 public class PricingDataSeeder implements CommandLineRunner {
 
     private final PricingProductRepository pricingProductRepository;

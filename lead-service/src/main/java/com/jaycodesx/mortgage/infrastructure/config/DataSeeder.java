@@ -13,7 +13,7 @@ import java.util.List;
 public class DataSeeder {
 
     @Bean
-    @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
     CommandLineRunner seedLeads(MortgageLeadRepository mortgageLeadRepository) {
         return args -> {
             if (mortgageLeadRepository.count() > 0) {

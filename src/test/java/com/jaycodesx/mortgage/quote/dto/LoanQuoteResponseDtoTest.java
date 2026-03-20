@@ -14,6 +14,7 @@ class LoanQuoteResponseDtoTest {
         MortgageLeadResponseDto lead = new MortgageLeadResponseDto(9L, 4L, "NEW", "PUBLIC_QUOTE_FUNNEL");
         LoanQuoteResponseDto dto = new LoanQuoteResponseDto(
                 4L,
+                "user-abc",
                 "session-123",
                 "COMPLETED",
                 false,
@@ -34,10 +35,13 @@ class LoanQuoteResponseDtoTest {
                 new BigDecimal("99500.00"),
                 "Prime",
                 "Route to a loan officer",
-                lead
+                lead,
+                null,
+                null
         );
 
         assertThat(dto.id()).isEqualTo(4L);
+        assertThat(dto.userId()).isEqualTo("user-abc");
         assertThat(dto.sessionId()).isEqualTo("session-123");
         assertThat(dto.processingStatus()).isEqualTo("COMPLETED");
         assertThat(dto.quoteStage()).isEqualTo("REFINED");

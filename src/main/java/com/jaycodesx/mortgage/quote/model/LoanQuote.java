@@ -21,6 +21,9 @@ public class LoanQuote {
     @Column(nullable = false, updatable = false)
     private Long id;
 
+    @Column(length = 128)
+    private String userId;
+
     @Column(length = 64)
     private String sessionId;
 
@@ -94,6 +97,8 @@ public class LoanQuote {
     }
 
     public Long getId() { return id; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
     public String getSessionId() { return sessionId; }
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
     public String getRequestFingerprint() { return requestFingerprint; }

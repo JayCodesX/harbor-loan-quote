@@ -14,7 +14,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class DataSeeder {
 
     @Bean
-    @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
     CommandLineRunner seedBorrowers(BorrowerRepository borrowerRepository) {
         return args -> {
             if (borrowerRepository.count() > 0) {

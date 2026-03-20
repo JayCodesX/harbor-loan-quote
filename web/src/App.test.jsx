@@ -80,7 +80,7 @@ describe('Borrower demo app', () => {
       accessToken: 'token-123',
       tokenType: 'Bearer',
       expiresIn: 900,
-      email: 'admin@jaycodesx.dev',
+      email: 'admin@example.com',
       role: 'ADMIN',
     }))
 
@@ -89,7 +89,7 @@ describe('Borrower demo app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }))
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    await waitFor(() => expect(screen.getAllByText('admin@jaycodesx.dev').length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getAllByText('admin@example.com').length).toBeGreaterThan(0))
     expect(screen.getByRole('link', { name: 'Admin Console' })).toBeInTheDocument()
   })
 

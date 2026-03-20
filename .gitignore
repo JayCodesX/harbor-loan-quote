@@ -15,3 +15,11 @@ nginx/certs/*.crt
 nginx/certs/*.pem
 *.log
 .DS_Store
+
+# AI tool directories
+.claude/
+.cursor/
+.copilot/
+.aider/
+.continue/
+.codeium/

@@ -1,28 +1,32 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-export const AUTH_STORAGE_KEY = 'mortgage-loan-api-auth'
-export const SESSION_STORAGE_KEY = 'mortgage-loan-api-session-id'
+export const AUTH_STORAGE_KEY = 'harbor-loan-quote-auth'
+export const SESSION_STORAGE_KEY = 'harbor-loan-quote-session-id'
 
 export const defaultQuoteForm = {
-  homePrice: '450000',
-  downPayment: '90000',
-  zipCode: '60614',
+  homePrice: '525000',
+  downPayment: '60000',
+  zipCode: '98109',
+  stateCode: 'WA',
+  countyName: 'King',
   loanProgram: 'CONVENTIONAL',
   propertyUse: 'PRIMARY_RESIDENCE',
   termYears: '30',
 }
 
 export const defaultRefineForm = {
-  quoteId: '',
-  firstName: 'Jay',
-  lastName: 'Parker',
-  email: 'jay@jaycodesx.dev',
-  phone: '555-111-0104',
-  annualIncome: '132000',
-  monthlyDebts: '950',
-  creditScore: '742',
-  cashReserves: '28500',
-  firstTimeBuyer: 'true',
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  stateCode: '',
+  countyName: '',
+  annualIncome: '0',
+  monthlyDebts: '0',
+  creditScore: '0',
+  cashReserves: '0',
+  firstTimeBuyer: 'false',
   vaEligible: 'false',
+  estimatedFundingDate: '',
 }
 
 export const defaultMortgageForm = {
@@ -39,8 +43,15 @@ export const defaultAmortizationForm = {
 }
 
 export const defaultAuthForm = {
-  email: 'jay@jaycodesx.dev',
-  password: 'StrongPass123!',
+  email: '',
+  password: '',
+}
+
+export const defaultSubscriptionForm = {
+  email: '',
+  productUpdates: 'true',
+  rateAlerts: 'true',
+  partnerAlerts: 'true',
 }
 
 export function getStoredAuth() {

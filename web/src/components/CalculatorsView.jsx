@@ -1,3 +1,5 @@
+import './BorrowerStyles.css'
+import './QuoteLanding.css'
 import { formatCurrency } from '../lib/demoApp'
 
 export default function CalculatorsView({
@@ -15,108 +17,129 @@ export default function CalculatorsView({
   handleInput,
 }) {
   return (
-    <section className="calculator-shell">
-      <div className="section-heading d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
-        <div>
-          <span className="eyebrow-chip">Free tools</span>
-          <h2 className="display-6 fw-bold mt-3 mb-2">Consumer calculators that stay public.</h2>
-          <p className="text-secondary mb-0">Keep the utility tools open while the main demo flow stays focused on borrower quote conversion.</p>
-        </div>
-        <div className="btn-group rounded-pill calculator-switcher">
-          <button className={`btn ${activeCalculator === 'mortgage' ? 'btn-primary' : 'btn-outline-secondary'}`} type="button" onClick={() => setActiveCalculator('mortgage')}>
-            Mortgage payment
-          </button>
-          <button className={`btn ${activeCalculator === 'amortization' ? 'btn-primary' : 'btn-outline-secondary'}`} type="button" onClick={() => setActiveCalculator('amortization')}>
-            Amortization
-          </button>
-        </div>
+    <div className="borrower-v3-layout">
+      <div className="v3-calc-header">
+        <div className="v3-landing-pill">FREE TOOLS</div>
+        <h1 className="v3-calc-title">Loan calculators</h1>
+        <p className="v3-calc-copy">Estimate your monthly payment or preview a full amortization schedule.</p>
       </div>
 
-      <div className="row g-4">
-        {activeCalculator === 'mortgage' ? (
-          <>
-            <div className="col-lg-7">
-              <div className="calc-shell h-100">
-                <h3 className="h4 mb-2">Monthly mortgage payment calculator</h3>
-                <p className="text-secondary mb-4">Estimate your monthly payment based on home price, down payment, rate, and term.</p>
-                <form className="row g-3" onSubmit={handleMortgageSubmit}>
-                  <div className="col-md-6">
-                    <label className="form-label">Home price</label>
-                    <input className="form-control" name="loanAmount" inputMode="decimal" value={mortgageForm.loanAmount} onChange={handleInput(setMortgageForm)} required />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Down payment</label>
-                    <input className="form-control" name="downPayment" inputMode="decimal" value={mortgageForm.downPayment} onChange={handleInput(setMortgageForm)} required />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Interest rate</label>
-                    <input className="form-control" name="annualInterestRate" inputMode="decimal" value={mortgageForm.annualInterestRate} onChange={handleInput(setMortgageForm)} required />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Loan term</label>
-                    <input className="form-control" name="termYears" inputMode="numeric" value={mortgageForm.termYears} onChange={handleInput(setMortgageForm)} required />
-                  </div>
-                  <div className="col-12 d-grid">
-                    <button className="btn btn-primary btn-lg" type="submit" disabled={loadingTarget === 'mortgage'}>
-                      {loadingTarget === 'mortgage' ? 'Calculating...' : 'Calculate payment'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-            <div className="col-lg-5">
-              <div className="calc-result-card h-100">
-                <span className="eyebrow-chip">Payment result</span>
-                <h4 className="display-6 fw-bold mt-3">{formatCurrency(mortgageResult?.monthlyPayment)}</h4>
-                <p className="text-secondary">Estimated monthly payment.</p>
-                <ul className="list-unstyled quote-details mb-0">
-                  <li><span>Financed principal</span><strong>{formatCurrency(mortgageResult?.financedPrincipal)}</strong></li>
-                  <li><span>Payments</span><strong>{mortgageResult?.numberOfPayments ?? '--'}</strong></li>
-                </ul>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="col-lg-7">
-              <div className="calc-shell h-100">
-                <h3 className="h4 mb-2">Amortization preview</h3>
-                <p className="text-secondary mb-4">Use principal, rate, and term to preview payment amount and payment count.</p>
-                <form className="row g-3" onSubmit={handleAmortizationSubmit}>
-                  <div className="col-md-4">
-                    <label className="form-label">Principal</label>
-                    <input className="form-control" name="principal" inputMode="decimal" value={amortizationForm.principal} onChange={handleInput(setAmortizationForm)} required />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Interest rate</label>
-                    <input className="form-control" name="annualInterestRate" inputMode="decimal" value={amortizationForm.annualInterestRate} onChange={handleInput(setAmortizationForm)} required />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Loan term</label>
-                    <input className="form-control" name="termYears" inputMode="numeric" value={amortizationForm.termYears} onChange={handleInput(setAmortizationForm)} required />
-                  </div>
-                  <div className="col-12 d-grid">
-                    <button className="btn btn-primary btn-lg" type="submit" disabled={loadingTarget === 'amortization'}>
-                      {loadingTarget === 'amortization' ? 'Calculating...' : 'Calculate amortization'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-            <div className="col-lg-5">
-              <div className="calc-result-card h-100">
-                <span className="eyebrow-chip">Amortization result</span>
-                <h4 className="display-6 fw-bold mt-3">{formatCurrency(amortizationResult?.monthlyPayment)}</h4>
-                <p className="text-secondary">Monthly payment from principal only.</p>
-                <ul className="list-unstyled quote-details mb-0">
-                  <li><span>Principal</span><strong>{formatCurrency(amortizationResult?.principal)}</strong></li>
-                  <li><span>Payments</span><strong>{amortizationResult?.numberOfPayments ?? '--'}</strong></li>
-                </ul>
-              </div>
-            </div>
-          </>
-        )}
+      <div className="v3-landing-program v3-calc-tabs">
+        <button
+          type="button"
+          className={`v3-landing-program-btn${activeCalculator === 'mortgage' ? ' v3-landing-program-btn-active' : ''}`}
+          onClick={() => setActiveCalculator('mortgage')}
+        >
+          Mortgage payment
+        </button>
+        <button
+          type="button"
+          className={`v3-landing-program-btn${activeCalculator === 'amortization' ? ' v3-landing-program-btn-active' : ''}`}
+          onClick={() => setActiveCalculator('amortization')}
+        >
+          Amortization
+        </button>
       </div>
-    </section>
+
+      {activeCalculator === 'mortgage' ? (
+        <div className="v3-calc-grid">
+          <div className="borrower-v3-card v3-calc-form-card">
+            <p className="v3-landing-kicker">Mortgage payment</p>
+            <h2 className="borrower-v3-panel-title" style={{ marginTop: 8 }}>Monthly payment calculator</h2>
+            <p className="v3-calc-form-copy">Estimate your monthly payment from home price, down payment, rate, and term.</p>
+            <form onSubmit={handleMortgageSubmit}>
+              <div className="v3-calc-fields">
+                <article className="v3-landing-field">
+                  <p>Home price</p>
+                  <input className="v3-landing-field-input" name="loanAmount" inputMode="decimal" value={mortgageForm.loanAmount} onChange={handleInput(setMortgageForm)} required />
+                </article>
+                <article className="v3-landing-field">
+                  <p>Down payment</p>
+                  <input className="v3-landing-field-input" name="downPayment" inputMode="decimal" value={mortgageForm.downPayment} onChange={handleInput(setMortgageForm)} required />
+                </article>
+                <article className="v3-landing-field">
+                  <p>Interest rate (%)</p>
+                  <input className="v3-landing-field-input" name="annualInterestRate" inputMode="decimal" value={mortgageForm.annualInterestRate} onChange={handleInput(setMortgageForm)} required />
+                </article>
+                <article className="v3-landing-field">
+                  <p>Loan term (years)</p>
+                  <input className="v3-landing-field-input" name="termYears" inputMode="numeric" value={mortgageForm.termYears} onChange={handleInput(setMortgageForm)} required />
+                </article>
+              </div>
+              <div className="v3-calc-submit-row">
+                <button type="submit" className="v3-landing-result" disabled={loadingTarget === 'mortgage'}>
+                  {loadingTarget === 'mortgage' ? 'Calculating...' : 'Calculate payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="borrower-v3-card v3-calc-result-card">
+            <p className="v3-landing-kicker">Payment result</p>
+            <div className="v3-landing-estimate v3-calc-estimate">
+              <p>ESTIMATED MONTHLY PAYMENT</p>
+              <strong>{mortgageResult?.monthlyPayment ? formatCurrency(mortgageResult.monthlyPayment) : '—'}</strong>
+            </div>
+            <div className="v3-calc-breakdown">
+              <div className="borrower-v3-breakdown-row">
+                <span>Financed principal</span>
+                <strong>{mortgageResult?.financedPrincipal ? formatCurrency(mortgageResult.financedPrincipal) : '—'}</strong>
+              </div>
+              <div className="borrower-v3-breakdown-row">
+                <span>Number of payments</span>
+                <strong>{mortgageResult?.numberOfPayments ?? '—'}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="v3-calc-grid">
+          <div className="borrower-v3-card v3-calc-form-card">
+            <p className="v3-landing-kicker">Amortization</p>
+            <h2 className="borrower-v3-panel-title" style={{ marginTop: 8 }}>Amortization preview</h2>
+            <p className="v3-calc-form-copy">Use principal, rate, and term to preview your payment and schedule.</p>
+            <form onSubmit={handleAmortizationSubmit}>
+              <div className="v3-calc-fields v3-calc-fields-3">
+                <article className="v3-landing-field">
+                  <p>Principal</p>
+                  <input className="v3-landing-field-input" name="principal" inputMode="decimal" value={amortizationForm.principal} onChange={handleInput(setAmortizationForm)} required />
+                </article>
+                <article className="v3-landing-field">
+                  <p>Interest rate (%)</p>
+                  <input className="v3-landing-field-input" name="annualInterestRate" inputMode="decimal" value={amortizationForm.annualInterestRate} onChange={handleInput(setAmortizationForm)} required />
+                </article>
+                <article className="v3-landing-field">
+                  <p>Loan term (years)</p>
+                  <input className="v3-landing-field-input" name="termYears" inputMode="numeric" value={amortizationForm.termYears} onChange={handleInput(setAmortizationForm)} required />
+                </article>
+              </div>
+              <div className="v3-calc-submit-row">
+                <button type="submit" className="v3-landing-result" disabled={loadingTarget === 'amortization'}>
+                  {loadingTarget === 'amortization' ? 'Calculating...' : 'Calculate amortization'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="borrower-v3-card v3-calc-result-card">
+            <p className="v3-landing-kicker">Amortization result</p>
+            <div className="v3-landing-estimate v3-calc-estimate">
+              <p>MONTHLY PAYMENT</p>
+              <strong>{amortizationResult?.monthlyPayment ? formatCurrency(amortizationResult.monthlyPayment) : '—'}</strong>
+            </div>
+            <div className="v3-calc-breakdown">
+              <div className="borrower-v3-breakdown-row">
+                <span>Principal</span>
+                <strong>{amortizationResult?.principal ? formatCurrency(amortizationResult.principal) : '—'}</strong>
+              </div>
+              <div className="borrower-v3-breakdown-row">
+                <span>Number of payments</span>
+                <strong>{amortizationResult?.numberOfPayments ?? '—'}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

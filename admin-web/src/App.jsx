@@ -1,35 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
-import 'bootstrap/dist/css/bootstrap.min.css'
 import './App.css'
-import AdminLoginView from './components/AdminLoginView'
-import AdminNav from './components/AdminNav'
-import DashboardView from './components/DashboardView'
-import QuoteLabView from './components/QuoteLabView'
-import WorkspaceView from './components/WorkspaceView'
-import PricingView from './components/PricingView'
-import ReportsView from './components/ReportsView'
-import DocsView from './components/DocsView'
+import AdminApp from './components/AdminApp'
 import {
   API_BASE_URL,
+  AUTH_STORAGE_KEY,
   defaultAdminLogin,
   defaultBorrowerForm,
   defaultLoanForm,
+  defaultPartnerForm,
   defaultProductForm,
-  defaultQuoteForm,
   defaultReportForm,
   formatCurrency,
   getOrCreateSessionId,
   getStoredAuth,
 } from './lib/adminApp'
 
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [authState, setAuthState] = useState(() => getStoredAuth())
   const [loginForm, setLoginForm] = useState(defaultAdminLogin)
   const [summary, setSummary] = useState(null)
-  const [quoteForm, setQuoteForm] = useState(defaultQuoteForm)
-  const [quoteMonitorId, setQuoteMonitorId] = useState('')
-  const [quoteResult, setQuoteResult] = useState(null)
   const [borrowerForm, setBorrowerForm] = useState(defaultBorrowerForm)
   const [borrowers, setBorrowers] = useState([])
   const [createdBorrower, setCreatedBorrower] = useState(null)
@@ -39,6 +30,12 @@ function App() {
   const [productForm, setProductForm] = useState(defaultProductForm)
   const [products, setProducts] = useState([])
   const [editingProductId, setEditingProductId] = useState(null)
+  const [lenderForm, setLenderForm] = useState(defaultPartnerForm)
+  const [agentForm, setAgentForm] = useState(defaultPartnerForm)
+  const [lenders, setLenders] = useState([])
+  const [agents, setAgents] = useState([])
+  const [editingLenderId, setEditingLenderId] = useState(null)
+  const [editingAgentId, setEditingAgentId] = useState(null)
   const [reportForm, setReportForm] = useState(defaultReportForm)
   const [reportResult, setReportResult] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
@@ -46,16 +43,22 @@ function App() {
   const [sessionId] = useState(() => getOrCreateSessionId())
 
   const isAdmin = authState?.role === 'ADMIN'
+  const isV3Parity = true
 
   const endpointPreview = useMemo(() => ({
     login: `${API_BASE_URL}/auth/login`,
+    refresh: `${API_BASE_URL}/auth/refresh`,
+    logout: `${API_BASE_URL}/auth/logout`,
     adminSummary: `${API_BASE_URL}/metrics/admin/summary`,
-    publicQuote: `${API_BASE_URL}/loan-quotes/public`,
-    quoteById: `${API_BASE_URL}/loan-quotes`,
     borrowers: `${API_BASE_URL}/borrowers`,
     loans: `${API_BASE_URL}/loans`,
     products: `${API_BASE_URL}/admin/products`,
+    lenders: `${API_BASE_URL}/admin/lenders`,
+    agents: `${API_BASE_URL}/admin/agents`,
+    lenderSync: `${API_BASE_URL}/admin/lenders/sync`,
+    agentSync: `${API_BASE_URL}/admin/agents/sync`,
     reports: `${API_BASE_URL}/admin/reports/query`,
+    reportExport: `${API_BASE_URL}/admin/reports/export`,
     mortgage: `${API_BASE_URL}/loans/mortgage-payment/calculate`,
     amortization: `${API_BASE_URL}/loans/amortization/calculate`,
   }), [])
@@ -67,9 +70,9 @@ function App() {
     }
 
     if (nextAuthState) {
-      window.localStorage.setItem('mortgage-loan-api-auth', JSON.stringify(nextAuthState))
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextAuthState))
     } else {
-      window.localStorage.removeItem('mortgage-loan-api-auth')
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
     }
   }
 
@@ -78,17 +81,56 @@ function App() {
     setter((current) => ({ ...current, [name]: value }))
   }
 
+  const refreshAuthSession = async (currentAuthState = authState) => {
+    if (!currentAuthState?.refreshToken) {
+      saveAuthState(null)
+      return null
+    }
+
+    try {
+      const response = await fetch(endpointPreview.refresh, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: currentAuthState.refreshToken }),
+      })
+
+      if (!response.ok) {
+        saveAuthState(null)
+        return null
+      }
+
+      const result = await response.json()
+      saveAuthState(result)
+      return result
+    } catch {
+      saveAuthState(null)
+      return null
+    }
+  }
+
   const callApi = async (target, endpoint, options = {}) => {
     setErrorMessage('')
     setLoadingTarget(target)
 
     try {
-      const response = await fetch(endpoint, {
-        headers: {
-          ...(options.headers || {}),
-        },
+      const initialHeaders = { ...(options.headers || {}) }
+      let response = await fetch(endpoint, {
+        headers: initialHeaders,
         ...options,
       })
+
+      if (response.status === 401 && String(initialHeaders.Authorization || '').startsWith('Bearer ') && authState?.refreshToken) {
+        const refreshed = await refreshAuthSession(authState)
+        if (refreshed?.accessToken) {
+          response = await fetch(endpoint, {
+            ...options,
+            headers: {
+              ...initialHeaders,
+              Authorization: `Bearer ${refreshed.accessToken}`,
+            },
+          })
+        }
+      }
 
       if (response.status === 401) {
         saveAuthState(null)
@@ -110,6 +152,13 @@ function App() {
     } finally {
       setLoadingTarget('')
     }
+  }
+
+  const confirmAction = (message) => {
+    if (typeof window === 'undefined' || typeof window.confirm !== 'function') {
+      return true
+    }
+    return window.confirm(message)
   }
 
   const fetchSummary = async () => {
@@ -137,44 +186,6 @@ function App() {
 
     if (result) {
       saveAuthState(result)
-    }
-  }
-
-  const handleAdminQuoteSubmit = async (event) => {
-    event.preventDefault()
-    const result = await callApi('admin-public-quote', endpointPreview.publicQuote, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Session-Id': sessionId,
-      },
-      body: JSON.stringify({
-        ...quoteForm,
-        homePrice: Number(quoteForm.homePrice),
-        downPayment: Number(quoteForm.downPayment),
-        termYears: Number(quoteForm.termYears),
-      }),
-    })
-
-    if (result) {
-      setQuoteResult(result)
-      setQuoteMonitorId(String(result.id))
-    }
-  }
-
-  const fetchQuote = async () => {
-    if (!quoteMonitorId.trim()) {
-      setErrorMessage('Enter a quote ID to load the quote snapshot.')
-      return
-    }
-
-    const result = await callApi('quote-monitor', `${endpointPreview.quoteById}/${quoteMonitorId.trim()}`, {
-      method: 'GET',
-      headers: { 'X-Session-Id': sessionId },
-    })
-
-    if (result) {
-      setQuoteResult(result)
     }
   }
 
@@ -290,6 +301,113 @@ function App() {
     setProductForm(defaultProductForm)
   }
 
+  const loadPartners = async (partnerType) => {
+    const endpoint = partnerType === 'lenders' ? endpointPreview.lenders : endpointPreview.agents
+    const setter = partnerType === 'lenders' ? setLenders : setAgents
+    const result = await callApi(`${partnerType}-load`, endpoint, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${authState.accessToken}` },
+    })
+
+    if (result) {
+      setter(result)
+    }
+  }
+
+  const startEditPartner = (partnerType, partner) => {
+    const editingSetter = partnerType === 'lenders' ? setEditingLenderId : setEditingAgentId
+    const setter = partnerType === 'lenders' ? setLenderForm : setAgentForm
+    editingSetter(partner.id)
+    setter({
+      displayName: partner.displayName ?? '',
+      companyName: partner.companyName ?? '',
+      email: partner.email ?? '',
+      phone: partner.phone ?? '',
+      stateCode: partner.stateCode ?? '',
+      countyName: partner.countyName ?? '',
+      city: partner.city ?? '',
+      specialty: partner.specialty ?? '',
+      licenseNumber: partner.licenseNumber ?? '',
+      nmlsId: partner.nmlsId ?? '',
+      rankingScore: partner.rankingScore ? String(partner.rankingScore) : '',
+      responseSlaHours: partner.responseSlaHours ? String(partner.responseSlaHours) : '',
+      languages: partner.languages ?? '',
+      websiteUrl: partner.websiteUrl ?? '',
+      active: String(partner.active),
+    })
+  }
+
+  const resetPartnerForm = (partnerType) => {
+    if (partnerType === 'lenders') {
+      setEditingLenderId(null)
+      setLenderForm(defaultPartnerForm)
+      return
+    }
+    setEditingAgentId(null)
+    setAgentForm(defaultPartnerForm)
+  }
+
+  const savePartner = async (event, partnerType) => {
+    event.preventDefault()
+    const endpointBase = partnerType === 'lenders' ? endpointPreview.lenders : endpointPreview.agents
+    const form = partnerType === 'lenders' ? lenderForm : agentForm
+    const editingId = partnerType === 'lenders' ? editingLenderId : editingAgentId
+    const endpoint = editingId ? `${endpointBase}/${editingId}` : endpointBase
+    const method = editingId ? 'PUT' : 'POST'
+    const result = await callApi(`${partnerType}-save`, endpoint, {
+      method,
+      headers: {
+        Authorization: `Bearer ${authState.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...form,
+        rankingScore: form.rankingScore ? Number(form.rankingScore) : null,
+        responseSlaHours: form.responseSlaHours ? Number(form.responseSlaHours) : null,
+        active: form.active === 'true',
+      }),
+    })
+
+    if (result) {
+      resetPartnerForm(partnerType)
+      loadPartners(partnerType)
+    }
+  }
+
+  const deletePartner = async (partnerType, id) => {
+    if (!confirmAction(`Remove this ${partnerType === 'lenders' ? 'lender' : 'agent'} entry?`)) {
+      return
+    }
+    const endpointBase = partnerType === 'lenders' ? endpointPreview.lenders : endpointPreview.agents
+    const result = await callApi(`${partnerType}-delete-${id}`, `${endpointBase}/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authState.accessToken}` },
+    })
+
+    if (result !== null) {
+      if (partnerType === 'lenders' && editingLenderId === id) {
+        resetPartnerForm('lenders')
+      }
+      if (partnerType === 'agents' && editingAgentId === id) {
+        resetPartnerForm('agents')
+      }
+      loadPartners(partnerType)
+    }
+  }
+
+  const syncPartners = async (partnerType) => {
+    const endpoint = partnerType === 'lenders' ? endpointPreview.lenderSync : endpointPreview.agentSync
+    const result = await callApi(`${partnerType}-sync`, `${endpoint}?provider=external-csv`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authState.accessToken}` },
+    })
+
+    if (result) {
+      loadPartners(partnerType)
+      fetchSummary()
+    }
+  }
+
   const saveProduct = async (event) => {
     event.preventDefault()
     const endpoint = editingProductId ? `${endpointPreview.products}/${editingProductId}` : endpointPreview.products
@@ -315,12 +433,18 @@ function App() {
   }
 
   const deleteProduct = async (id) => {
+    if (!confirmAction('Remove this product from the pricing catalog?')) {
+      return
+    }
     const result = await callApi(`delete-product-${id}`, `${endpointPreview.products}/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${authState.accessToken}` },
     })
 
     if (result !== null) {
+      if (editingProductId === id) {
+        resetProductForm()
+      }
       setProducts((current) => current.filter((product) => product.id !== id))
       fetchSummary()
     }
@@ -339,6 +463,10 @@ function App() {
         activeOnly: reportForm.activeOnly === 'true',
         minCreditScore: reportForm.minCreditScore ? Number(reportForm.minCreditScore) : null,
         maxCreditScore: reportForm.maxCreditScore ? Number(reportForm.maxCreditScore) : null,
+        dateFrom: reportForm.dateFrom || null,
+        dateTo: reportForm.dateTo || null,
+        page: Number(reportForm.page || '1'),
+        pageSize: Number(reportForm.pageSize || '25'),
       }),
     })
 
@@ -347,10 +475,59 @@ function App() {
     }
   }
 
+  const exportReport = async () => {
+    setErrorMessage('')
+    setLoadingTarget('export-report')
+    try {
+      const response = await fetch(endpointPreview.reportExport, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authState.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...reportForm,
+          activeOnly: reportForm.activeOnly === 'true',
+          minCreditScore: reportForm.minCreditScore ? Number(reportForm.minCreditScore) : null,
+          maxCreditScore: reportForm.maxCreditScore ? Number(reportForm.maxCreditScore) : null,
+          dateFrom: reportForm.dateFrom || null,
+          dateTo: reportForm.dateTo || null,
+          page: 1,
+          pageSize: Number(reportForm.pageSize || '25'),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await response.text() || 'Unable to export this report.')
+      }
+
+      const csv = await response.text()
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = 'mortgage-desk-report.csv'
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      setErrorMessage(error.message || 'Unable to export this report.')
+    } finally {
+      setLoadingTarget('')
+    }
+  }
+
   const handleSignOut = () => {
+    if (authState?.refreshToken) {
+      fetch(endpointPreview.logout, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: authState.refreshToken }),
+      }).catch(() => {})
+    }
     saveAuthState(null)
     setSummary(null)
-    setQuoteResult(null)
     setBorrowers([])
     setCreatedBorrower(null)
     setLoanResult(null)
@@ -371,117 +548,91 @@ function App() {
     }
   }, [activeTab, isAdmin])
 
-  const quoteOutcomeData = summary ? [
-    { label: 'Completed', value: summary.quotes.quotesCompleted },
-    { label: 'Failed', value: summary.quotes.quotesFailed },
-    { label: 'Deduped', value: summary.quotes.quotesDeduped },
-  ] : []
+  useEffect(() => {
+    if (isAdmin && activeTab === 'lenders') {
+      loadPartners('lenders')
+    }
+  }, [activeTab, isAdmin])
 
-  const funnelData = summary ? [
-    { label: 'Quotes', value: summary.quotes.sessionsWithQuotes },
-    { label: 'Authenticated', value: summary.quotes.authenticatedSessions },
-    { label: 'Refined', value: summary.quotes.sessionsWithRefinements },
-    { label: 'Lead Converted', value: summary.quotes.leadConvertedSessions },
-  ] : []
+  useEffect(() => {
+    if (isAdmin && activeTab === 'agents') {
+      loadPartners('agents')
+    }
+  }, [activeTab, isAdmin])
 
-  if (!authState?.accessToken || !isAdmin) {
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined
+    }
+    document.body.classList.toggle('v3-parity-mode', isV3Parity)
+    return () => {
+      document.body.classList.remove('v3-parity-mode')
+    }
+  }, [isV3Parity])
+
+  if (isV3Parity) {
     return (
-      <AdminLoginView
+      <AdminApp
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         authState={authState}
-        errorMessage={errorMessage}
+        onSignOut={handleSignOut}
         loginForm={loginForm}
         setLoginForm={setLoginForm}
-        loadingTarget={loadingTarget}
         handleLoginSubmit={handleLoginSubmit}
         handleInput={handleInput}
+        loadingTarget={loadingTarget}
+        errorMessage={errorMessage}
+        summary={summary}
+        fetchSummary={fetchSummary}
+        borrowerForm={borrowerForm}
+        setBorrowerForm={setBorrowerForm}
+        createBorrower={createBorrower}
+        fetchBorrowers={fetchBorrowers}
+        borrowers={borrowers}
+        createdBorrower={createdBorrower}
+        loanForm={loanForm}
+        setLoanForm={setLoanForm}
+        createLoan={createLoan}
+        fetchLoan={fetchLoan}
+        loanLookupId={loanLookupId}
+        setLoanLookupId={setLoanLookupId}
+        loanResult={loanResult}
+        productForm={productForm}
+        setProductForm={setProductForm}
+        products={products}
+        editingProductId={editingProductId}
+        saveProduct={saveProduct}
+        startEditProduct={startEditProduct}
+        resetProductForm={resetProductForm}
+        deleteProduct={deleteProduct}
+        loadProducts={loadProducts}
+        lenderForm={lenderForm}
+        setLenderForm={setLenderForm}
+        lenders={lenders}
+        editingLenderId={editingLenderId}
+        agentForm={agentForm}
+        setAgentForm={setAgentForm}
+        agents={agents}
+        editingAgentId={editingAgentId}
+        loadPartners={loadPartners}
+        savePartner={savePartner}
+        startEditPartner={startEditPartner}
+        resetPartnerForm={resetPartnerForm}
+        deletePartner={deletePartner}
+        syncPartners={syncPartners}
+        reportForm={reportForm}
+        setReportForm={setReportForm}
+        reportResult={reportResult}
+        runReport={runReport}
+        exportReport={exportReport}
+        endpointPreview={endpointPreview}
+        formatCurrency={formatCurrency}
+        isAdmin={isAdmin}
       />
     )
   }
 
-  return (
-    <div className="admin-app min-vh-100">
-      <AdminNav activeTab={activeTab} setActiveTab={setActiveTab} authState={authState} onSignOut={handleSignOut} />
-
-      <main className="container py-4 py-lg-5">
-        {errorMessage ? <div className="alert alert-danger border-0 admin-alert">{errorMessage}</div> : null}
-
-        {activeTab === 'dashboard' ? (
-          <DashboardView
-            summary={summary}
-            funnelData={funnelData}
-            quoteOutcomeData={quoteOutcomeData}
-            fetchSummary={fetchSummary}
-            loadingTarget={loadingTarget}
-            setActiveTab={setActiveTab}
-          />
-        ) : null}
-
-        {activeTab === 'quote-lab' ? (
-          <QuoteLabView
-            quoteForm={quoteForm}
-            setQuoteForm={setQuoteForm}
-            quoteMonitorId={quoteMonitorId}
-            setQuoteMonitorId={setQuoteMonitorId}
-            quoteResult={quoteResult}
-            loadingTarget={loadingTarget}
-            handleAdminQuoteSubmit={handleAdminQuoteSubmit}
-            fetchQuote={fetchQuote}
-            handleInput={handleInput}
-          />
-        ) : null}
-
-        {activeTab === 'workspace' ? (
-          <WorkspaceView
-            borrowerForm={borrowerForm}
-            setBorrowerForm={setBorrowerForm}
-            borrowers={borrowers}
-            createdBorrower={createdBorrower}
-            loanForm={loanForm}
-            setLoanForm={setLoanForm}
-            loanLookupId={loanLookupId}
-            setLoanLookupId={setLoanLookupId}
-            loanResult={loanResult}
-            loadingTarget={loadingTarget}
-            fetchBorrowers={fetchBorrowers}
-            createBorrower={createBorrower}
-            createLoan={createLoan}
-            fetchLoan={fetchLoan}
-            handleInput={handleInput}
-            formatCurrency={formatCurrency}
-          />
-        ) : null}
-
-        {activeTab === 'pricing' ? (
-          <PricingView
-            productForm={productForm}
-            setProductForm={setProductForm}
-            products={products}
-            editingProductId={editingProductId}
-            loadingTarget={loadingTarget}
-            loadProducts={loadProducts}
-            saveProduct={saveProduct}
-            startEditProduct={startEditProduct}
-            resetProductForm={resetProductForm}
-            deleteProduct={deleteProduct}
-            handleInput={handleInput}
-          />
-        ) : null}
-
-        {activeTab === 'reports' ? (
-          <ReportsView
-            reportForm={reportForm}
-            setReportForm={setReportForm}
-            reportResult={reportResult}
-            loadingTarget={loadingTarget}
-            runReport={runReport}
-            handleInput={handleInput}
-          />
-        ) : null}
-
-        {activeTab === 'docs' ? <DocsView endpointPreview={endpointPreview} /> : null}
-      </main>
-    </div>
-  )
 }
 
 export default App
