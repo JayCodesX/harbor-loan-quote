@@ -1,5 +1,6 @@
 package com.jaycodesx.mortgage.quote.service;
 
+import com.jaycodesx.mortgage.consent.service.ConsentAuditLogService;
 import com.jaycodesx.mortgage.lead.dto.MortgageLeadResponseDto;
 import com.jaycodesx.mortgage.lead.model.MortgageLead;
 import com.jaycodesx.mortgage.lead.repository.MortgageLeadRepository;
@@ -31,6 +32,7 @@ public class LoanQuoteService {
     private final PricingServiceClient pricingServiceClient;
     private final QuoteMetricsService quoteMetricsService;
     private final QuoteNotificationPublisher quoteNotificationPublisher;
+    private final ConsentAuditLogService consentAuditLogService;
 
     public LoanQuoteService(
             LoanQuoteRepository loanQuoteRepository,
@@ -39,7 +41,8 @@ public class LoanQuoteService {
             QuoteSessionService quoteSessionService,
             PricingServiceClient pricingServiceClient,
             QuoteMetricsService quoteMetricsService,
-            QuoteNotificationPublisher quoteNotificationPublisher
+            QuoteNotificationPublisher quoteNotificationPublisher,
+            ConsentAuditLogService consentAuditLogService
     ) {
         this.loanQuoteRepository = loanQuoteRepository;
         this.borrowerQuoteProfileRepository = borrowerQuoteProfileRepository;
@@ -48,6 +51,7 @@ public class LoanQuoteService {
         this.pricingServiceClient = pricingServiceClient;
         this.quoteMetricsService = quoteMetricsService;
         this.quoteNotificationPublisher = quoteNotificationPublisher;
+        this.consentAuditLogService = consentAuditLogService;
     }
 
     public LoanQuoteResponseDto createPublicQuote(PublicLoanQuoteRequestDto request) {
@@ -159,10 +163,21 @@ public class LoanQuoteService {
     }
 
     public LoanQuoteResponseDto refineQuote(Long id, String sessionId, QuoteRefinementRequestDto request) {
-        return refineQuote(id, sessionId, null, request);
+        return refineQuote(id, sessionId, null, request, null, null);
+    }
+
+    public LoanQuoteResponseDto refineQuote(Long id, String sessionId, QuoteRefinementRequestDto request,
+                                             String ipAddress, String userAgent) {
+        return refineQuote(id, sessionId, null, request, ipAddress, userAgent);
     }
 
     public LoanQuoteResponseDto refineQuote(Long id, String sessionId, String userId, QuoteRefinementRequestDto request) {
+        return refineQuote(id, sessionId, userId, request, null, null);
+    }
+
+    private LoanQuoteResponseDto refineQuote(Long id, String sessionId, String userId,
+                                              QuoteRefinementRequestDto request,
+                                              String ipAddress, String userAgent) {
         LoanQuote quote = loanQuoteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Quote not found for id: " + id));
 
@@ -186,6 +201,7 @@ public class LoanQuoteService {
         quote.setQuoteStatus("REFINEMENT_REQUESTED");
         LoanQuote savedQuote = loanQuoteRepository.save(quote);
         BorrowerQuoteProfile savedProfile = upsertBorrowerProfile(savedQuote.getId(), request);
+        consentAuditLogService.recordConsentAtLeadSubmission(savedQuote.getId(), savedProfile.getId(), request, ipAddress, userAgent);
         quoteMetricsService.recordQuoteRefinementRequested(savedQuote.getId(), resolvedSessionId);
 
         QuoteCalculationResponseDto result = pricingServiceClient.calculate(new QuoteCalculationRequestDto(

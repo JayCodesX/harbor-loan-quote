@@ -1,5 +1,6 @@
 package com.jaycodesx.mortgage.quote.service;
 
+import com.jaycodesx.mortgage.consent.service.ConsentAuditLogService;
 import com.jaycodesx.mortgage.lead.model.MortgageLead;
 import com.jaycodesx.mortgage.lead.repository.MortgageLeadRepository;
 import com.jaycodesx.mortgage.infrastructure.metrics.QuoteMetricsService;
@@ -51,6 +52,9 @@ class LoanQuoteServiceTest {
 
     @Mock
     private QuoteNotificationPublisher quoteNotificationPublisher;
+
+    @Mock
+    private ConsentAuditLogService consentAuditLogService;
 
     @InjectMocks
     private LoanQuoteService loanQuoteService;
@@ -153,7 +157,8 @@ class LoanQuoteServiceTest {
         QuoteRefinementRequestDto request = new QuoteRefinementRequestDto(
                 "Jay", "Stone", "jay@jaycodesx.dev", "555-111-0101",
                 new BigDecimal("140000.00"), new BigDecimal("900.00"), 760,
-                new BigDecimal("45000.00"), true, false
+                new BigDecimal("45000.00"), true, false,
+                true, true, true, "I agree to be contacted by Harbor Mortgage and its partners."
         );
         when(quoteSessionService.resolveSessionId("session-5")).thenReturn("session-5");
         when(quoteSessionService.fingerprintRefinedQuote("session-5", 5L, request)).thenReturn("refine-1");

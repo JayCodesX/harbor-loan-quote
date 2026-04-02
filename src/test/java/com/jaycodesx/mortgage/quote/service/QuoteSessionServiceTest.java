@@ -72,7 +72,8 @@ class QuoteSessionServiceTest {
         QuoteRefinementRequestDto request = new QuoteRefinementRequestDto(
                 "Jay", "Lane", "jay@jaycodesx.dev", "555-111-0101",
                 new BigDecimal("120000.00"), new BigDecimal("900.00"), 740,
-                new BigDecimal("30000.00"), true, false
+                new BigDecimal("30000.00"), true, false,
+                true, true, true, "I agree to be contacted by Harbor Mortgage and its partners."
         );
 
         String fingerprint = quoteSessionService.fingerprintRefinedQuote("session-1", 5L, request);

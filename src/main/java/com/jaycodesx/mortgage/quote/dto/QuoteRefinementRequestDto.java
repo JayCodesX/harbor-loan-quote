@@ -19,6 +19,11 @@ public record QuoteRefinementRequestDto(
         @NotNull @Min(300) @Max(850) Integer creditScore,
         @NotNull @Min(0) BigDecimal cashReserves,
         @NotNull Boolean firstTimeBuyer,
-        @NotNull Boolean vaEligible
+        @NotNull Boolean vaEligible,
+        // Consent fields — captured at the moment of lead submission for TCPA compliance
+        @NotNull Boolean tcpaConsent,
+        Boolean emailOptIn,
+        @NotNull Boolean leadShareConsent,
+        @NotBlank String consentLanguage
 ) {
 }

@@ -80,15 +80,25 @@ public class LoanQuoteController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
+            @RequestHeader(value = "X-Forwarded-For", required = false) String forwardedFor,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
             @Valid @RequestBody QuoteRefinementRequestDto request
     ) {
         try {
             userTokenAuthorizationService.requireAuthenticatedUser(authorizationHeader);
-            LoanQuoteResponseDto refinedQuote = loanQuoteService.refineQuote(id, sessionId, request);
+            String ipAddress = resolveIpAddress(forwardedFor);
+            LoanQuoteResponseDto refinedQuote = loanQuoteService.refineQuote(id, sessionId, request, ipAddress, userAgent);
             return Mono.just(ResponseEntity.ok(refinedQuote));
         } catch (IllegalArgumentException ex) {
             HttpStatus status = ex.getMessage().contains("token") ? HttpStatus.UNAUTHORIZED : HttpStatus.BAD_REQUEST;
             return Mono.just(ResponseEntity.status(status).body(ex.getMessage()));
         }
+    }
+
+    private String resolveIpAddress(String forwardedFor) {
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return "unknown";
     }
 }
