@@ -14,7 +14,7 @@
     <artifactId>mortgage-loan-api</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Mortgage Loan API</name>
-    <description>Reactive quote orchestration API for the mortgage loan demo platform</description>
+    <description>Loan quote and lead capture API for the mortgage loan demo platform</description>
 
     <properties>
         <java.version>21</java.version>
@@ -36,7 +36,7 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
