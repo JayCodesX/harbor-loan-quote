@@ -49,7 +49,11 @@ public class DataSeeder {
                 randomInt(690, 790),
                 randomCurrency(18000, 42000),
                 true,
-                false
+                false,
+                true,
+                true,
+                true,
+                "I agree to be contacted by Harbor Mortgage and its lending partners."
         ));
 
         loanQuoteService.createPublicQuote(new PublicLoanQuoteRequestDto(
@@ -80,7 +84,11 @@ public class DataSeeder {
                 randomInt(720, 820),
                 randomCurrency(40000, 95000),
                 false,
-                false
+                false,
+                true,
+                null,
+                true,
+                "I agree to be contacted by Harbor Mortgage and its lending partners."
         ));
     }
 

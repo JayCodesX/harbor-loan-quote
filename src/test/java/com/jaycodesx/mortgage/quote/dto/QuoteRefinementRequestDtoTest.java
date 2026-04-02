@@ -20,7 +20,11 @@ class QuoteRefinementRequestDtoTest {
                 735,
                 new BigDecimal("24000.00"),
                 true,
-                false
+                false,
+                true,
+                true,
+                true,
+                "I agree to be contacted by Harbor Mortgage and its partners."
         );
 
         assertThat(dto.firstName()).isEqualTo("Jay");
@@ -33,5 +37,9 @@ class QuoteRefinementRequestDtoTest {
         assertThat(dto.cashReserves()).isEqualByComparingTo("24000.00");
         assertThat(dto.firstTimeBuyer()).isTrue();
         assertThat(dto.vaEligible()).isFalse();
+        assertThat(dto.tcpaConsent()).isTrue();
+        assertThat(dto.emailOptIn()).isTrue();
+        assertThat(dto.leadShareConsent()).isTrue();
+        assertThat(dto.consentLanguage()).isEqualTo("I agree to be contacted by Harbor Mortgage and its partners.");
     }
 }

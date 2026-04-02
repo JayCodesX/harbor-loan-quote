@@ -77,7 +77,8 @@ class LoanQuoteControllerTest {
         QuoteRefinementRequestDto request = new QuoteRefinementRequestDto(
                 "Jay", "Lane", "jay@jaycodesx.dev", "555-111-0101",
                 new BigDecimal("125000.00"), new BigDecimal("900.00"), 735,
-                new BigDecimal("24000.00"), true, false
+                new BigDecimal("24000.00"), true, false,
+                true, true, true, "I agree to be contacted by Harbor Mortgage and its partners."
         );
         LoanQuoteResponseDto responseDto = new LoanQuoteResponseDto(
                 1L, null, "session-1", "COMPLETED", false, "REFINED", "LEAD_READY", true, true,
@@ -85,12 +86,12 @@ class LoanQuoteControllerTest {
                 "PRIMARY_RESIDENCE", 30, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
                 "Prime", "next", null, null, null
         );
-        when(loanQuoteService.refineQuote(1L, "session-1", request)).thenReturn(responseDto);
+        when(loanQuoteService.refineQuote(1L, "session-1", request, "unknown", null)).thenReturn(responseDto);
 
-        assertThat(loanQuoteController.refineQuote(1L, "Bearer token", "session-1", request).block().getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(loanQuoteController.refineQuote(1L, "Bearer token", "session-1", null, null, request).block().getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        when(loanQuoteService.refineQuote(2L, "session-1", request)).thenThrow(new IllegalArgumentException("not found"));
-        assertThat(loanQuoteController.refineQuote(2L, "Bearer token", "session-1", request).block().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        when(loanQuoteService.refineQuote(2L, "session-1", request, "unknown", null)).thenThrow(new IllegalArgumentException("not found"));
+        assertThat(loanQuoteController.refineQuote(2L, "Bearer token", "session-1", null, null, request).block().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
