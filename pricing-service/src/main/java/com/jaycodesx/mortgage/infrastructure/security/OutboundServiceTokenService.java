@@ -11,19 +11,14 @@ import java.time.Instant;
 import java.util.Date;
 
 @Service
-@EnableConfigurationProperties({OutboundServiceTokenProperties.class, PricingResultTokenProperties.class})
+@EnableConfigurationProperties(OutboundServiceTokenProperties.class)
 public class OutboundServiceTokenService {
 
     private final OutboundServiceTokenProperties properties;
-    private final PricingResultTokenProperties pricingResultTokenProperties;
     private final SecretKey signingKey;
 
-    public OutboundServiceTokenService(
-            OutboundServiceTokenProperties properties,
-            PricingResultTokenProperties pricingResultTokenProperties
-    ) {
+    public OutboundServiceTokenService(OutboundServiceTokenProperties properties) {
         this.properties = properties;
-        this.pricingResultTokenProperties = pricingResultTokenProperties;
         this.signingKey = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 
@@ -38,21 +33,6 @@ public class OutboundServiceTokenService {
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(properties.ttlSeconds())))
                 .signWith(signingKey)
-                .compact();
-    }
-
-    public String generatePricingResultToken() {
-        Instant now = Instant.now();
-        SecretKey key = Keys.hmacShaKeyFor(pricingResultTokenProperties.secret().getBytes(StandardCharsets.UTF_8));
-        return Jwts.builder()
-                .issuer(pricingResultTokenProperties.issuer())
-                .subject(pricingResultTokenProperties.issuer())
-                .audience().add(pricingResultTokenProperties.audience()).and()
-                .claim("scope", pricingResultTokenProperties.scope())
-                .claim("type", "service")
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(pricingResultTokenProperties.ttlSeconds())))
-                .signWith(key)
                 .compact();
     }
 }

@@ -5,7 +5,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.borrower-service")
 public record BorrowerServiceClientProperties(
         String baseUrl,
-        String secret,
         String audience,
         String scope
 ) {

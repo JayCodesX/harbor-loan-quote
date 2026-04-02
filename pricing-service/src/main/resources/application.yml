@@ -24,7 +24,7 @@ app:
   transport:
     type: ${APP_TRANSPORT_TYPE:noop}
   service-token:
-    secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-service-token-secret-change-me-1234567890}
+    public-key: ${APP_SERVICE_TOKEN_PUBLIC_KEY:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApSeG/JJIj4r/5XeZhatc1ddBqedj5gbhIh4WzuZ5euRbGyqK0X2gHOhHBrvKOWLnJ/sMfRaeuKItCF5j6TIjOxTkOXgbiim8EppQVac25BNMaqrDvAK/0sPpXphba8Q2VW0AACoT2XsG70AgIzWFIWcAAvgQHaa8kz9Baneto2BOSOz6vByRzlAxikFzR9CTN02O4JeaOdvDPNjxyLaxiRMD+YW1HxLEPIR0Bt3dl5kNxyVMu31xq7Mmdcqpu2BbrKbDDzBkMPSBpW2l+3SsqFzk1z4cwuOS0ZpzyMDoA1ca7t5F2BzOpcT2rVZoAZeDyXeZ0UmeGAhDyzdEqlTwhQIDAQAB}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}
     audience: ${APP_SERVICE_TOKEN_AUDIENCE:pricing-service}
     scope: ${APP_SERVICE_TOKEN_SCOPE:pricing:write}
@@ -34,12 +34,6 @@ app:
     audience: ${APP_OUTBOUND_SERVICE_TOKEN_AUDIENCE:lead-service}
     scope: ${APP_OUTBOUND_SERVICE_TOKEN_SCOPE:lead:write}
     ttl-seconds: ${APP_OUTBOUND_SERVICE_TOKEN_TTL_SECONDS:300}
-  pricing-result-token:
-    secret: ${APP_PRICING_RESULT_TOKEN_SECRET:dev-only-pricing-result-secret-change-me-1234567890}
-    issuer: ${APP_PRICING_RESULT_TOKEN_ISSUER:pricing-service}
-    audience: ${APP_PRICING_RESULT_TOKEN_AUDIENCE:mortgage-loan-api}
-    scope: ${APP_PRICING_RESULT_TOKEN_SCOPE:quote:write}
-    ttl-seconds: ${APP_PRICING_RESULT_TOKEN_TTL_SECONDS:300}
 
 management:
   endpoint:

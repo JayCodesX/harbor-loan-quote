@@ -51,7 +51,6 @@ public class QuoteNotificationPublisher {
                 .build()).queueUrl();
         try {
             QuoteNotificationMessage secured = message.withServiceToken(serviceTokenService.generateToken(
-                    notificationTokenProperties.secret(),
                     notificationTokenProperties.audience(),
                     notificationTokenProperties.scope()
             ));
