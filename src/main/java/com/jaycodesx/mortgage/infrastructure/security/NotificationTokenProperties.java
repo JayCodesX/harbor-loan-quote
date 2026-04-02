@@ -4,7 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.notification-token")
 public record NotificationTokenProperties(
-        String secret,
         String audience,
         String scope
 ) {

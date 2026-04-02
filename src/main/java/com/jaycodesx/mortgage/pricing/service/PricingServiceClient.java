@@ -1,9 +1,11 @@
 package com.jaycodesx.mortgage.pricing.service;
 
+import com.jaycodesx.mortgage.infrastructure.security.ServiceTokenService;
 import com.jaycodesx.mortgage.pricing.config.PricingServiceClientProperties;
 import com.jaycodesx.mortgage.pricing.dto.QuoteCalculationRequestDto;
 import com.jaycodesx.mortgage.pricing.dto.QuoteCalculationResponseDto;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -13,16 +15,19 @@ import org.springframework.web.client.RestClient;
 public class PricingServiceClient {
 
     private final RestClient restClient;
+    private final ServiceTokenService serviceTokenService;
 
-    public PricingServiceClient(PricingServiceClientProperties properties) {
+    public PricingServiceClient(PricingServiceClientProperties properties, ServiceTokenService serviceTokenService) {
         this.restClient = RestClient.builder()
                 .baseUrl(properties.baseUrl())
                 .build();
+        this.serviceTokenService = serviceTokenService;
     }
 
     public QuoteCalculationResponseDto calculate(QuoteCalculationRequestDto request) {
         return restClient.post()
                 .uri("/internal/quotes/calculate")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceTokenService.generatePricingToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()

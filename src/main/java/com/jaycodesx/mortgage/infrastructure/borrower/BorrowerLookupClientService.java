@@ -29,7 +29,6 @@ public class BorrowerLookupClientService {
             BorrowerExistsResponseDto response = restClient.get()
                     .uri("/borrowers/internal/{id}/exists", borrowerId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceTokenService.generateToken(
-                            properties.secret(),
                             properties.audience(),
                             properties.scope()
                     ))

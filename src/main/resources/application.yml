@@ -41,28 +41,22 @@ app:
   transport:
     type: ${APP_TRANSPORT_TYPE:noop}
   service-token:
-    secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-service-token-secret-change-me-1234567890}
+    private-key: ${APP_SERVICE_TOKEN_PRIVATE_KEY:MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQClJ4b8kkiPiv/ld5mFq1zV10Gp52PmBuEiHhbO5nl65FsbKorRfaAc6EcGu8o5Yucn+wx9Fp64oi0IXmPpMiM7FOQ5eBuKKbwSmlBVpzbkE0xqqsO8Ar/Sw+lemFtrxDZVbQAAKhPZewbvQCAjNYUhZwAC+BAdpryTP0Fqd62jYE5I7Pq8HJHOUDGKQXNH0JM3TY7gl5o528M82PHItrGJEwP5hbUfEsQ8hHQG3d2XmQ3HJUy7fXGrsyZ1yqm7YFuspsMPMGQw9IGlbaX7dKyoXOTXPhzC45LRmnPIwOgDVxru3kXYHM6lxPatVmgBl4PJd5nRSZ4YCEPLN0SqVPCFAgMBAAECggEAVBKlItoM2hW2YsfZfTRY0/r6UFWcgzKpVMbgcX7eBHNO9atYc4ByC4Uq8wCR11jDt5STLPJg5jiYmBQE5GdDjAX8kEzWKCVKumWX06KFzOEOG5bGgWUc5VwZ5q/Eij2eMyqDv5Gr/SAlzZFlSscp+HEIjnpdKdsBUCv5TwuRdwL0HWQ8HOQ3biAZaKaC7k6XWp/rssGIDu6erVPHqsJ0UEuBbLr0ti6IjAddPQrjtyruflzZMiy6o9qGo1zZfBDBW/F2j8ORsm6G0S/Brp98rGa74hAqtmYOcnOHsTv6cWOQBXoAVNEA4GTKWsWZaUzms+4wiXhDVVxUkY7wRYIfQQKBgQDU8vcmgf7nbu3u75p44D7Q9mPNFY/w4Du2Q7jU4nRvu8F6ILl7nXkvyyyJB/8Pntb0EU8W/4g3HaFgAeCEqXeDixHqbrWWqKZ9P50qEaLLYDHUk6EY2fdsT4wK4pixFboKXpkeX3g8QvONq6hZ7a38ppyWGPhsfRn6KgQlCgC+bQKBgQDGivsU2ABR6TeRplTv9mPvlCT2ZZASr954GB9ab5ycW5WyHXTYHz+A/nkqLN0cURL3H8AFlVx9uTNJ8e5fv8WJIsWtBGbXPzi4uY63YRoAAc7EA9zCiyHblL+106LSmHwasyc6uagyLnj90+5y4k8Xzde9+KzuSBtQ0BaEtlVLeQKBgQDDh5SINzTnLGQs0LT16HHFTXe2B+ZzNnGdmfFNB+IB9lRg30twxddQmy35ZO4+WYrl8D6+z0Mz2HEkxpRxO2oRztBUgfMasyCsQIz+49KnC1y15Bg3yWv2d9QO6qFpeJmqi9HsoZy1OISJwOSELkljg1ikOalhdD02Bv5nRBgKwQKBgEik02d1/O/7f/yHum4uXbRsJPYOhR+BP8n7MYWabtf63pPUGUt2a3rcISMgVSqmM2U+NbkVREkv+ScmIQzhkvoxQdijUqmRFUTph+Fq4uN7xdaMfzqjQ5kfHOH/dITPjCEMyd6/zV3HCTf+UjGwwjW4eCanFUb+FRiFeqfGOwEpAoGAANNHUkpbIoXwaS3PKtY7hX0Gtcrc9ZmM0LhZUBFE85yaQdvArbqmNJn2ej9yMeeb09IyDsTFUPeDBSy/YOb6gJk/qnE0a1i8zGEUJboSExm2YAD73pa2gE8vWmczy4+7bDo1AfdWiEVDbeHv5JiEpDOtXT9SG28XItMBIudKTpg=}
+    key-id: ${APP_SERVICE_TOKEN_KEY_ID:harbor-dev-key-1}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}
     audience: ${APP_SERVICE_TOKEN_AUDIENCE:pricing-service}
     scope: ${APP_SERVICE_TOKEN_SCOPE:pricing:write}
     ttl-seconds: ${APP_SERVICE_TOKEN_TTL_SECONDS:300}
-  pricing-result-token:
-    secret: ${APP_PRICING_RESULT_TOKEN_SECRET:dev-only-pricing-result-secret-change-me-1234567890}
-    issuer: ${APP_PRICING_RESULT_TOKEN_ISSUER:pricing-service}
-    audience: ${APP_PRICING_RESULT_TOKEN_AUDIENCE:mortgage-loan-api}
-    scope: ${APP_PRICING_RESULT_TOKEN_SCOPE:quote:write}
   lead-result-token:
     secret: ${APP_LEAD_RESULT_TOKEN_SECRET:dev-only-lead-result-secret-change-me-1234567890}
     issuer: ${APP_LEAD_RESULT_TOKEN_ISSUER:lead-service}
     audience: ${APP_LEAD_RESULT_TOKEN_AUDIENCE:mortgage-loan-api}
     scope: ${APP_LEAD_RESULT_TOKEN_SCOPE:lead:write}
   notification-token:
-    secret: ${APP_NOTIFICATION_TOKEN_SECRET:dev-only-notification-secret-change-me-1234567890}
     audience: ${APP_NOTIFICATION_TOKEN_AUDIENCE:notification-service}
     scope: ${APP_NOTIFICATION_TOKEN_SCOPE:notification:write}
   borrower-service:
     base-url: ${APP_BORROWER_SERVICE_BASE_URL:http://localhost:8087}
-    secret: ${APP_BORROWER_SERVICE_SECRET:dev-only-borrower-service-token-secret-change-me-1234567890}
     audience: ${APP_BORROWER_SERVICE_AUDIENCE:borrower-service}
     scope: ${APP_BORROWER_SERVICE_SCOPE:borrower:read}
   user-token:
