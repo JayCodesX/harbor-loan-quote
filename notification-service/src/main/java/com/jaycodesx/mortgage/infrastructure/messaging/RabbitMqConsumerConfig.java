@@ -4,6 +4,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -47,8 +48,19 @@ public class RabbitMqConsumerConfig {
                 .with(RATE_SHEET_ACTIVATED_ROUTING_KEY);
     }
 
+    /**
+     * Configures Jackson deserialization to use INFERRED type precedence.
+     * This ignores the {@code __TypeId__} header set by pricing-service (which carries
+     * the pricing-service fully-qualified class name) and instead infers the target type
+     * from the {@code @RabbitListener} method parameter. This is the standard pattern for
+     * cross-service JSON messaging where publisher and consumer have independent class hierarchies.
+     */
     @Bean
     MessageConverter jacksonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+        DefaultJackson2JavaTypeMapper typeMapper = new DefaultJackson2JavaTypeMapper();
+        typeMapper.setTypePrecedence(DefaultJackson2JavaTypeMapper.TypePrecedence.INFERRED);
+        converter.setJavaTypeMapper(typeMapper);
+        return converter;
     }
 }
