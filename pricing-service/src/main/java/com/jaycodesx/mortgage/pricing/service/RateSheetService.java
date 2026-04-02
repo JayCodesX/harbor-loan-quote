@@ -1,6 +1,7 @@
 package com.jaycodesx.mortgage.pricing.service;
 
 import com.jaycodesx.mortgage.pricing.dto.RateSheetEntryRequest;
+import com.jaycodesx.mortgage.pricing.messaging.RateSheetActivatedPublisher;
 import com.jaycodesx.mortgage.pricing.model.RateSheetEntry;
 import com.jaycodesx.mortgage.pricing.model.RateSheetPublication;
 import com.jaycodesx.mortgage.pricing.repository.RateSheetEntryRepository;
@@ -29,11 +30,17 @@ public class RateSheetService {
 
     private final RateSheetPublicationRepository publicationRepository;
     private final RateSheetEntryRepository entryRepository;
+    private final PricingCacheService pricingCacheService;
+    private final RateSheetActivatedPublisher activatedPublisher;
 
     public RateSheetService(RateSheetPublicationRepository publicationRepository,
-                             RateSheetEntryRepository entryRepository) {
+                             RateSheetEntryRepository entryRepository,
+                             PricingCacheService pricingCacheService,
+                             RateSheetActivatedPublisher activatedPublisher) {
         this.publicationRepository = publicationRepository;
         this.entryRepository = entryRepository;
+        this.pricingCacheService = pricingCacheService;
+        this.activatedPublisher = activatedPublisher;
     }
 
     /**
@@ -71,6 +78,9 @@ public class RateSheetService {
                 .map(e -> new RateSheetEntry(saved.getId(), e.productTermId(), e.rate(), e.price()))
                 .toList();
         entryRepository.saveAll(entryEntities);
+
+        pricingCacheService.evictAll();
+        activatedPublisher.publish(saved);
 
         return saved;
     }

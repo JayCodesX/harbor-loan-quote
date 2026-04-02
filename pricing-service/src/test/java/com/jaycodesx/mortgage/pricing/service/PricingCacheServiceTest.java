@@ -12,9 +12,11 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,6 +72,29 @@ class PricingCacheServiceTest {
         service.cacheRefinedDecision(quote, request, decision);
 
         verify(valueOperations).set(any(), eq("{\"estimatedRate\":5.9500,\"estimatedApr\":6.1300,\"financedAmount\":420000.00,\"estimatedMonthlyPayment\":2499.16,\"estimatedCashToClose\":116025.00,\"qualificationTier\":\"Prime\"}"), any());
+    }
+
+    @Test
+    void evictAll_deletesAllPricingKeys() {
+        Set<String> keys = Set.of("pricing:public:abc123", "pricing:refined:def456");
+        when(redisTemplate.keys("pricing:*")).thenReturn(keys);
+        when(redisTemplate.delete(anyCollection())).thenReturn(2L);
+
+        PricingCacheService service = new PricingCacheService(redisTemplate, new ObjectMapper());
+        long evicted = service.evictAll();
+
+        assertThat(evicted).isEqualTo(2L);
+        verify(redisTemplate).delete(keys);
+    }
+
+    @Test
+    void evictAll_returnsZero_whenNoCachedKeys() {
+        when(redisTemplate.keys("pricing:*")).thenReturn(Set.of());
+
+        PricingCacheService service = new PricingCacheService(redisTemplate, new ObjectMapper());
+        long evicted = service.evictAll();
+
+        assertThat(evicted).isZero();
     }
 
     private PricingScenario buildQuote() {

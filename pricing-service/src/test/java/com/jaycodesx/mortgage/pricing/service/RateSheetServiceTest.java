@@ -1,6 +1,7 @@
 package com.jaycodesx.mortgage.pricing.service;
 
 import com.jaycodesx.mortgage.pricing.dto.RateSheetEntryRequest;
+import com.jaycodesx.mortgage.pricing.messaging.RateSheetActivatedPublisher;
 import com.jaycodesx.mortgage.pricing.model.RateSheetEntry;
 import com.jaycodesx.mortgage.pricing.model.RateSheetPublication;
 import com.jaycodesx.mortgage.pricing.repository.RateSheetEntryRepository;
@@ -33,6 +34,12 @@ class RateSheetServiceTest {
 
     @Mock
     private RateSheetEntryRepository entryRepository;
+
+    @Mock
+    private PricingCacheService pricingCacheService;
+
+    @Mock
+    private RateSheetActivatedPublisher activatedPublisher;
 
     @InjectMocks
     private RateSheetService rateSheetService;
@@ -69,6 +76,9 @@ class RateSheetServiceTest {
         assertThat(savedEntries.get(0).getRate()).isEqualByComparingTo("6.7500");
         assertThat(savedEntries.get(0).getPrice()).isEqualByComparingTo("-0.5000");
         assertThat(savedEntries.get(2).getProductTermId()).isEqualTo("FHA_30");
+
+        verify(pricingCacheService).evictAll();
+        verify(activatedPublisher).publish(saved);
     }
 
     @Test
@@ -85,6 +95,8 @@ class RateSheetServiceTest {
 
         assertThat(existing.getStatus()).isEqualTo("SUPERSEDED");
         verify(publicationRepository).saveAll(anyList());
+        verify(pricingCacheService).evictAll();
+        verify(activatedPublisher).publish(any(RateSheetPublication.class));
     }
 
     @Test

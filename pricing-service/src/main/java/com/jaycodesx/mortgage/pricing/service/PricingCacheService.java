@@ -4,6 +4,8 @@ import com.jaycodesx.mortgage.quote.dto.QuoteRefinementRequestDto;
 import com.jaycodesx.mortgage.quote.service.PricingScenario;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +15,13 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class PricingCacheService {
 
+    private static final Logger log = LoggerFactory.getLogger(PricingCacheService.class);
+    private static final String CACHE_KEY_PREFIX = "pricing:*";
     private static final Duration PUBLIC_TTL = Duration.ofMinutes(10);
     private static final Duration REFINED_TTL = Duration.ofMinutes(5);
 
@@ -42,6 +47,23 @@ public class PricingCacheService {
 
     public void cacheRefinedDecision(PricingScenario scenario, QuoteRefinementRequestDto request, QuotePricingService.QuoteDecision decision) {
         writeDecision(refinedKey(scenario, request), decision, REFINED_TTL);
+    }
+
+    /**
+     * Evicts all cached pricing decisions when a new rate sheet is activated per ADR-0048.
+     * Deletes every key matching {@code pricing:*} so the next request re-prices against
+     * the new rate sheet instead of returning a stale cached result.
+     */
+    public long evictAll() {
+        Set<String> keys = redisTemplate.keys(CACHE_KEY_PREFIX);
+        if (keys == null || keys.isEmpty()) {
+            log.debug("PricingCacheService.evictAll: no keys to evict");
+            return 0L;
+        }
+        Long deleted = redisTemplate.delete(keys);
+        long count = deleted != null ? deleted : 0L;
+        log.info("PricingCacheService.evictAll: evicted {} pricing cache entries", count);
+        return count;
     }
 
     private Optional<QuotePricingService.QuoteDecision> readDecision(String key) {
