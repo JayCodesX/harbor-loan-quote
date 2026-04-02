@@ -21,6 +21,8 @@ spring:
     open-in-view: false
 
 app:
+  transport:
+    type: ${APP_TRANSPORT_TYPE:noop}
   service-token:
     secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-service-token-secret-change-me-1234567890}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}

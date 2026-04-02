@@ -38,6 +38,8 @@ app:
     poll-delay-ms: ${APP_MESSAGING_POLL_DELAY_MS:3000}
   pricing-service:
     base-url: ${APP_PRICING_SERVICE_BASE_URL:http://localhost:8084}
+  transport:
+    type: ${APP_TRANSPORT_TYPE:noop}
   service-token:
     secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-service-token-secret-change-me-1234567890}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}
