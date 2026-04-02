@@ -4,6 +4,9 @@ import com.jaycodesx.mortgage.lead.dto.MortgageLeadResponseDto;
 import com.jaycodesx.mortgage.lead.model.MortgageLead;
 import com.jaycodesx.mortgage.lead.repository.MortgageLeadRepository;
 import com.jaycodesx.mortgage.infrastructure.metrics.QuoteMetricsService;
+import com.jaycodesx.mortgage.pricing.dto.QuoteCalculationRequestDto;
+import com.jaycodesx.mortgage.pricing.dto.QuoteCalculationResponseDto;
+import com.jaycodesx.mortgage.pricing.service.PricingServiceClient;
 import com.jaycodesx.mortgage.quote.dto.LoanQuoteResponseDto;
 import com.jaycodesx.mortgage.quote.dto.PublicLoanQuoteRequestDto;
 import com.jaycodesx.mortgage.quote.dto.QuoteRefinementRequestDto;
@@ -25,7 +28,7 @@ public class LoanQuoteService {
     private final BorrowerQuoteProfileRepository borrowerQuoteProfileRepository;
     private final MortgageLeadRepository mortgageLeadRepository;
     private final QuoteSessionService quoteSessionService;
-    private final QuoteJobPublisher quoteJobPublisher;
+    private final PricingServiceClient pricingServiceClient;
     private final QuoteMetricsService quoteMetricsService;
     private final QuoteNotificationPublisher quoteNotificationPublisher;
 
@@ -34,7 +37,7 @@ public class LoanQuoteService {
             BorrowerQuoteProfileRepository borrowerQuoteProfileRepository,
             MortgageLeadRepository mortgageLeadRepository,
             QuoteSessionService quoteSessionService,
-            QuoteJobPublisher quoteJobPublisher,
+            PricingServiceClient pricingServiceClient,
             QuoteMetricsService quoteMetricsService,
             QuoteNotificationPublisher quoteNotificationPublisher
     ) {
@@ -42,7 +45,7 @@ public class LoanQuoteService {
         this.borrowerQuoteProfileRepository = borrowerQuoteProfileRepository;
         this.mortgageLeadRepository = mortgageLeadRepository;
         this.quoteSessionService = quoteSessionService;
-        this.quoteJobPublisher = quoteJobPublisher;
+        this.pricingServiceClient = pricingServiceClient;
         this.quoteMetricsService = quoteMetricsService;
         this.quoteNotificationPublisher = quoteNotificationPublisher;
     }
@@ -59,7 +62,7 @@ public class LoanQuoteService {
         Optional<Long> existingQuoteId = quoteSessionService.findQuoteId(fingerprint);
         if (existingQuoteId.isPresent()) {
             Optional<LoanQuoteResponseDto> existing = getQuote(existingQuoteId.get());
-            if (existing.isPresent() && isInFlight(existing.get().processingStatus())) {
+            if (existing.isPresent()) {
                 quoteMetricsService.recordQuoteDeduped();
                 return markDuplicate(existing.get(), resolvedSessionId);
             }
@@ -68,7 +71,7 @@ public class LoanQuoteService {
         LoanQuote quote = new LoanQuote();
         quote.setSessionId(resolvedSessionId);
         quote.setRequestFingerprint(fingerprint);
-        quote.setProcessingStatus("QUEUED");
+        quote.setProcessingStatus("PROCESSING");
         quote.setHomePrice(request.homePrice().setScale(2, RoundingMode.HALF_UP));
         quote.setDownPayment(request.downPayment().setScale(2, RoundingMode.HALF_UP));
         quote.setFinancedAmount(request.homePrice().subtract(request.downPayment()).setScale(2, RoundingMode.HALF_UP));
@@ -80,9 +83,22 @@ public class LoanQuoteService {
         quote.setQuoteStatus("REQUESTED");
         quote.setLeadCaptured(false);
         LoanQuote savedQuote = loanQuoteRepository.save(quote);
-        quoteSessionService.rememberQuote(fingerprint, savedQuote.getId(), savedQuote.getProcessingStatus());
         quoteMetricsService.recordQuoteStarted(savedQuote.getId(), resolvedSessionId);
-        quoteJobPublisher.publish(QuoteJobMessage.publicQuote(savedQuote));
+
+        QuoteCalculationResponseDto result = pricingServiceClient.calculate(new QuoteCalculationRequestDto(
+                "PUBLIC_QUOTE",
+                savedQuote.getId(),
+                savedQuote.getHomePrice(),
+                savedQuote.getDownPayment(),
+                savedQuote.getZipCode(),
+                savedQuote.getLoanProgram(),
+                savedQuote.getPropertyUse(),
+                savedQuote.getTermYears(),
+                null, null, null, null, null, null
+        ));
+
+        applyPricingResult(savedQuote, result);
+        quoteSessionService.rememberQuote(fingerprint, savedQuote.getId(), savedQuote.getProcessingStatus());
 
         LoanQuoteResponseDto response = toResponse(savedQuote, Optional.empty(), Optional.empty(), false, resolvedSessionId);
         quoteNotificationPublisher.publish(QuoteNotificationMessage.fromResponse(response));
@@ -155,7 +171,7 @@ public class LoanQuoteService {
         Optional<Long> existingQuoteId = quoteSessionService.findQuoteId(fingerprint);
         if (existingQuoteId.isPresent() && existingQuoteId.get().equals(id)) {
             Optional<LoanQuoteResponseDto> existing = getQuote(id);
-            if (existing.isPresent() && isInFlight(existing.get().processingStatus())) {
+            if (existing.isPresent()) {
                 quoteMetricsService.recordQuoteDeduped();
                 return markDuplicate(existing.get(), resolvedSessionId);
             }
@@ -166,43 +182,38 @@ public class LoanQuoteService {
             quote.setUserId(userId);
         }
         quote.setRequestFingerprint(fingerprint);
-        quote.setProcessingStatus("QUEUED");
+        quote.setProcessingStatus("PROCESSING");
         quote.setQuoteStatus("REFINEMENT_REQUESTED");
         LoanQuote savedQuote = loanQuoteRepository.save(quote);
         BorrowerQuoteProfile savedProfile = upsertBorrowerProfile(savedQuote.getId(), request);
-        quoteSessionService.rememberQuote(fingerprint, savedQuote.getId(), savedQuote.getProcessingStatus());
         quoteMetricsService.recordQuoteRefinementRequested(savedQuote.getId(), resolvedSessionId);
-        quoteJobPublisher.publish(QuoteJobMessage.refinedQuote(savedQuote, savedProfile.getId(), request));
 
-        LoanQuoteResponseDto response = toResponse(savedQuote, Optional.of(savedProfile), mortgageLeadRepository.findByLoanQuoteId(id), false, resolvedSessionId);
+        QuoteCalculationResponseDto result = pricingServiceClient.calculate(new QuoteCalculationRequestDto(
+                "REFINED_QUOTE",
+                savedQuote.getId(),
+                savedQuote.getHomePrice(),
+                savedQuote.getDownPayment(),
+                savedQuote.getZipCode(),
+                savedQuote.getLoanProgram(),
+                savedQuote.getPropertyUse(),
+                savedQuote.getTermYears(),
+                request.creditScore(),
+                request.annualIncome(),
+                request.monthlyDebts(),
+                request.cashReserves(),
+                request.firstTimeBuyer(),
+                request.vaEligible()
+        ));
+
+        applyPricingResult(savedQuote, result);
+
+        MortgageLead lead = upsertLead(savedQuote.getId(), savedProfile.getId());
+        quoteSessionService.rememberQuote(fingerprint, savedQuote.getId(), savedQuote.getProcessingStatus());
+        quoteMetricsService.recordLeadCaptured(resolvedSessionId);
+
+        LoanQuoteResponseDto response = toResponse(savedQuote, Optional.of(savedProfile), Optional.of(lead), false, resolvedSessionId);
         quoteNotificationPublisher.publish(QuoteNotificationMessage.fromResponse(response));
         return response;
-    }
-
-    public void applyPricingResult(PricingResultMessage message) {
-        LoanQuote quote = loanQuoteRepository.findById(message.quoteId())
-                .orElseThrow(() -> new IllegalArgumentException("Quote not found for id: " + message.quoteId()));
-
-        quote.setProcessingStatus(defaultProcessingStatus(message.processingStatus()));
-        if (message.quoteStage() != null && !message.quoteStage().isBlank()) {
-            quote.setQuoteStage(message.quoteStage());
-        }
-        if (message.quoteStatus() != null && !message.quoteStatus().isBlank()) {
-            if (quote.isLeadCaptured() && "LEAD_READY".equalsIgnoreCase(message.quoteStatus())) {
-                quote.setQuoteStatus("LEAD_CAPTURED");
-            } else {
-                quote.setQuoteStatus(message.quoteStatus());
-            }
-        }
-        quote.setEstimatedRate(message.estimatedRate());
-        quote.setEstimatedApr(message.estimatedApr());
-        quote.setFinancedAmount(message.financedAmount());
-        quote.setEstimatedMonthlyPayment(message.estimatedMonthlyPayment());
-        quote.setEstimatedCashToClose(message.estimatedCashToClose());
-        quote.setQualificationTier(message.qualificationTier());
-        loanQuoteRepository.save(quote);
-        quoteSessionService.cacheQuoteStatus(quote.getId(), quote.getProcessingStatus());
-        publishNotificationSnapshot(quote);
     }
 
     public void applyLeadResult(LeadResultMessage message) {
@@ -216,6 +227,23 @@ public class LoanQuoteService {
         publishNotificationSnapshot(quote);
     }
 
+    private void applyPricingResult(LoanQuote quote, QuoteCalculationResponseDto result) {
+        quote.setProcessingStatus("COMPLETED");
+        if (result.quoteStage() != null && !result.quoteStage().isBlank()) {
+            quote.setQuoteStage(result.quoteStage());
+        }
+        if (result.quoteStatus() != null && !result.quoteStatus().isBlank()) {
+            quote.setQuoteStatus(result.quoteStatus());
+        }
+        quote.setEstimatedRate(result.estimatedRate());
+        quote.setEstimatedApr(result.estimatedApr());
+        quote.setFinancedAmount(result.financedAmount());
+        quote.setEstimatedMonthlyPayment(result.estimatedMonthlyPayment());
+        quote.setEstimatedCashToClose(result.estimatedCashToClose());
+        quote.setQualificationTier(result.qualificationTier());
+        loanQuoteRepository.save(quote);
+        quoteSessionService.cacheQuoteStatus(quote.getId(), quote.getProcessingStatus());
+    }
 
     private void publishNotificationSnapshot(LoanQuote quote) {
         LoanQuoteResponseDto response = toResponse(
@@ -226,10 +254,6 @@ public class LoanQuoteService {
                 quote.getSessionId()
         );
         quoteNotificationPublisher.publish(QuoteNotificationMessage.fromResponse(response));
-    }
-
-    private boolean isInFlight(String processingStatus) {
-        return "QUEUED".equalsIgnoreCase(processingStatus) || "PROCESSING".equalsIgnoreCase(processingStatus);
     }
 
     private LoanQuoteResponseDto markDuplicate(LoanQuoteResponseDto response, String sessionId) {
@@ -272,9 +296,7 @@ public class LoanQuoteService {
         String nextStep = quote.isLeadCaptured()
                 ? "Lead captured. Route this borrower to a loan officer or pricing workflow."
                 : profile.isPresent()
-                ? "Borrower profile saved. Refinement and lead creation are in progress."
-                : isInFlight(quote.getProcessingStatus())
-                ? "Your quote request is queued. Refresh in a few seconds for pricing updates."
+                ? "Borrower profile saved. Refined quote and lead creation complete."
                 : "Create an account or continue to provide borrower details for a refined quote.";
 
         return new LoanQuoteResponseDto(
@@ -312,7 +334,7 @@ public class LoanQuoteService {
     }
 
     private String defaultProcessingStatus(String processingStatus) {
-        return processingStatus == null || processingStatus.isBlank() ? "QUEUED" : processingStatus;
+        return processingStatus == null || processingStatus.isBlank() ? "PROCESSING" : processingStatus;
     }
 
     private BorrowerQuoteProfile upsertBorrowerProfile(Long quoteId, QuoteRefinementRequestDto request) {
@@ -330,6 +352,15 @@ public class LoanQuoteService {
         profile.setFirstTimeBuyer(request.firstTimeBuyer());
         profile.setVaEligible(request.vaEligible());
         return borrowerQuoteProfileRepository.save(profile);
+    }
+
+    private MortgageLead upsertLead(Long quoteId, Long borrowerQuoteProfileId) {
+        MortgageLead lead = mortgageLeadRepository.findByLoanQuoteId(quoteId).orElseGet(MortgageLead::new);
+        lead.setLoanQuoteId(quoteId);
+        lead.setBorrowerQuoteProfileId(borrowerQuoteProfileId);
+        lead.setLeadStatus("NEW");
+        lead.setLeadSource("PUBLIC_QUOTE_FUNNEL");
+        return mortgageLeadRepository.save(lead);
     }
 
     private void validateQuoteInputs(BigDecimal homePrice, BigDecimal downPayment, Integer termYears) {

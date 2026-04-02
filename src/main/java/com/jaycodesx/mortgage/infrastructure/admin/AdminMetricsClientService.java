@@ -6,7 +6,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
@@ -14,16 +14,13 @@ import java.util.List;
 @EnableConfigurationProperties(InternalServiceClientProperties.class)
 public class AdminMetricsClientService {
 
-    private final WebClient.Builder webClientBuilder;
     private final InternalServiceClientProperties properties;
     private final ServiceTokenService serviceTokenService;
 
     public AdminMetricsClientService(
-            WebClient.Builder webClientBuilder,
             InternalServiceClientProperties properties,
             ServiceTokenService serviceTokenService
     ) {
-        this.webClientBuilder = webClientBuilder;
         this.properties = properties;
         this.serviceTokenService = serviceTokenService;
     }
@@ -49,64 +46,60 @@ public class AdminMetricsClientService {
     }
 
     public List<BorrowerAdminResponseDto> fetchBorrowers() {
-        return getList(properties.borrowerBaseUrl(), properties.borrowerSecret(), properties.borrowerAudience(), properties.borrowerScope(), "/internal/admin/borrowers", new ParameterizedTypeReference<>() {});
+        return getList(properties.borrowerBaseUrl(), properties.borrowerSecret(), properties.borrowerAudience(), properties.borrowerScope(), "/internal/admin/borrowers");
     }
 
     public List<AdminPricingProductResponseDto> fetchProducts() {
-        return getList(properties.pricingBaseUrl(), properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope(), "/internal/admin/products", new ParameterizedTypeReference<>() {});
+        return getList(properties.pricingBaseUrl(), properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope(), "/internal/admin/products");
     }
 
     public AdminPricingProductResponseDto createProduct(AdminPricingProductRequestDto request) {
-        return exchangeWithBody(properties.pricingBaseUrl(), properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope(), "/internal/admin/products", request, AdminPricingProductResponseDto.class, "POST");
+        return RestClient.builder().baseUrl(properties.pricingBaseUrl()).build()
+                .post()
+                .uri("/internal/admin/products")
+                .header(HttpHeaders.AUTHORIZATION, bearer(properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(AdminPricingProductResponseDto.class);
     }
 
     public AdminPricingProductResponseDto updateProduct(Long id, AdminPricingProductRequestDto request) {
-        return exchangeWithBody(properties.pricingBaseUrl(), properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope(), "/internal/admin/products/" + id, request, AdminPricingProductResponseDto.class, "PUT");
+        return RestClient.builder().baseUrl(properties.pricingBaseUrl()).build()
+                .put()
+                .uri("/internal/admin/products/{id}", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(AdminPricingProductResponseDto.class);
     }
 
     public void deleteProduct(Long id) {
-        webClientBuilder.baseUrl(properties.pricingBaseUrl()).build()
+        RestClient.builder().baseUrl(properties.pricingBaseUrl()).build()
                 .delete()
-                .uri("/internal/admin/products/" + id)
+                .uri("/internal/admin/products/{id}", id)
                 .header(HttpHeaders.AUTHORIZATION, bearer(properties.pricingSecret(), properties.pricingAudience(), properties.pricingScope()))
                 .retrieve()
-                .toBodilessEntity()
-                .block();
+                .toBodilessEntity();
     }
 
     private <T> T get(String baseUrl, String secret, String audience, String scope, Class<T> responseType) {
-        return webClientBuilder.baseUrl(baseUrl).build()
+        return RestClient.builder().baseUrl(baseUrl).build()
                 .get()
                 .uri("/internal/admin/metrics")
                 .header(HttpHeaders.AUTHORIZATION, bearer(secret, audience, scope))
                 .retrieve()
-                .bodyToMono(responseType)
-                .block();
+                .body(responseType);
     }
 
-    private <T> List<T> getList(String baseUrl, String secret, String audience, String scope, String uri, ParameterizedTypeReference<List<T>> responseType) {
-        return webClientBuilder.baseUrl(baseUrl).build()
+    private <T> List<T> getList(String baseUrl, String secret, String audience, String scope, String uri) {
+        return RestClient.builder().baseUrl(baseUrl).build()
                 .get()
                 .uri(uri)
                 .header(HttpHeaders.AUTHORIZATION, bearer(secret, audience, scope))
                 .retrieve()
-                .bodyToMono(responseType)
-                .block();
-    }
-
-    private <T> T exchangeWithBody(String baseUrl, String secret, String audience, String scope, String uri, Object body, Class<T> responseType, String method) {
-        WebClient.RequestBodySpec request = switch (method) {
-            case "POST" -> webClientBuilder.baseUrl(baseUrl).build().post().uri(uri);
-            case "PUT" -> webClientBuilder.baseUrl(baseUrl).build().put().uri(uri);
-            default -> throw new IllegalArgumentException("Unsupported method");
-        };
-
-        return request.header(HttpHeaders.AUTHORIZATION, bearer(secret, audience, scope))
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(responseType)
-                .block();
+                .body(new ParameterizedTypeReference<>() {});
     }
 
     private String bearer(String secret, String audience, String scope) {

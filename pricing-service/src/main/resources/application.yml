@@ -21,23 +21,6 @@ spring:
     open-in-view: false
 
 app:
-  messaging:
-    enabled: ${APP_MESSAGING_ENABLED:true}
-    consumer-enabled: ${APP_MESSAGING_CONSUMER_ENABLED:true}
-    queue-name: ${APP_MESSAGING_QUEUE_NAME:quote-pricing-requests}
-    endpoint: ${AWS_ENDPOINT:http://localhost:4566}
-    region: ${AWS_REGION:us-east-1}
-    poll-delay-ms: ${APP_MESSAGING_POLL_DELAY_MS:3000}
-  lead-messaging:
-    enabled: ${APP_LEAD_MESSAGING_ENABLED:true}
-    queue-name: ${APP_LEAD_MESSAGING_QUEUE_NAME:quote-lead-requests}
-    endpoint: ${AWS_ENDPOINT:http://localhost:4566}
-    region: ${AWS_REGION:us-east-1}
-  pricing-result-messaging:
-    enabled: ${APP_PRICING_RESULT_MESSAGING_ENABLED:true}
-    queue-name: ${APP_PRICING_RESULT_QUEUE_NAME:quote-pricing-results}
-    endpoint: ${AWS_ENDPOINT:http://localhost:4566}
-    region: ${AWS_REGION:us-east-1}
   service-token:
     secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-service-token-secret-change-me-1234567890}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}

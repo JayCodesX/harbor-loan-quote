@@ -29,17 +29,15 @@ app:
     lead-base-url: ${APP_INTERNAL_ADMIN_LEAD_BASE_URL:http://localhost:8085}
   messaging:
     enabled: ${APP_MESSAGING_ENABLED:false}
-    consumer-enabled: ${APP_MESSAGING_CONSUMER_ENABLED:false}
-    queue-name: ${APP_MESSAGING_QUEUE_NAME:quote-pricing-requests}
-    pricing-result-queue-name: ${APP_PRICING_RESULT_QUEUE_NAME:quote-pricing-results}
     lead-result-queue-name: ${APP_LEAD_RESULT_QUEUE_NAME:quote-lead-results}
     notification-queue-name: ${APP_NOTIFICATION_QUEUE_NAME:quote-notification-events}
-    pricing-result-dlq-name: ${APP_PRICING_RESULT_DLQ_NAME:quote-pricing-results-dlq}
     lead-result-dlq-name: ${APP_LEAD_RESULT_DLQ_NAME:quote-lead-results-dlq}
     notification-dlq-name: ${APP_NOTIFICATION_DLQ_NAME:quote-notification-events-dlq}
     endpoint: ${AWS_ENDPOINT:http://localhost:4566}
     region: ${AWS_REGION:us-east-1}
     poll-delay-ms: ${APP_MESSAGING_POLL_DELAY_MS:3000}
+  pricing-service:
+    base-url: ${APP_PRICING_SERVICE_BASE_URL:http://localhost:8084}
   service-token:
     secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-service-token-secret-change-me-1234567890}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}
