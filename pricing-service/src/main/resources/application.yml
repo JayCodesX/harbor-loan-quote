@@ -12,9 +12,11 @@ spring:
       port: ${REDIS_PORT:6379}
       repositories:
         enabled: false
+  flyway:
+    locations: classpath:db/migration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
