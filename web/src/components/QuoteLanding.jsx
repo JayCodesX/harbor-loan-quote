@@ -12,6 +12,7 @@ export default function QuoteLanding({
   quoteResult,
   loadingTarget,
   handleInput,
+  onSubscribeClick,
 }) {
   const handleSignInClick = () => {
     if (authState) {
@@ -40,7 +41,7 @@ export default function QuoteLanding({
           <button type="button" className="v3-landing-nav-link" onClick={handleSignInClick}>
             {authState ? 'Sign Out' : 'Sign In'}
           </button>
-          <button type="button" className="v3-landing-subscribe">Subscribe</button>
+          <button type="button" className="v3-landing-subscribe" onClick={onSubscribeClick}>Subscribe</button>
         </nav>
       </header>
 

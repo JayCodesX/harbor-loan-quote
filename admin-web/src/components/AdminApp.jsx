@@ -73,6 +73,10 @@ export default function AdminApp({
   reportResult,
   runReport,
   exportReport,
+  rateSheetForm,
+  setRateSheetForm,
+  rateSheetResult,
+  publishRateSheet,
   endpointPreview,
   formatCurrency,
   isAdmin,
@@ -161,6 +165,10 @@ export default function AdminApp({
         loadingTarget={loadingTarget}
         authState={authState}
         onSignOut={onSignOut}
+        rateSheetForm={rateSheetForm}
+        setRateSheetForm={setRateSheetForm}
+        rateSheetResult={rateSheetResult}
+        publishRateSheet={publishRateSheet}
       />
     )
   }

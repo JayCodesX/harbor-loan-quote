@@ -78,6 +78,14 @@ public class AdminOperationsController {
         return adminCall(authorizationHeader, () -> ResponseEntity.ok(adminReportService.runReport(query)));
     }
 
+    @PostMapping("/rate-sheets")
+    public Mono<ResponseEntity<AdminRateSheetPublishResponseDto>> publishRateSheet(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody AdminRateSheetPublishRequestDto request
+    ) {
+        return adminCall(authorizationHeader, () -> ResponseEntity.status(HttpStatus.CREATED).body(adminMetricsClientService.publishRateSheet(request)));
+    }
+
     private <T> Mono<ResponseEntity<T>> adminCall(String authorizationHeader, Callable<ResponseEntity<T>> callable) {
         try {
             userTokenAuthorizationService.requireAdminUser(authorizationHeader);

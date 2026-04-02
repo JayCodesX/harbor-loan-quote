@@ -18,6 +18,10 @@ export default function AdminPricing({
   loadingTarget,
   authState,
   onSignOut,
+  rateSheetForm,
+  setRateSheetForm,
+  rateSheetResult,
+  publishRateSheet,
 }) {
   useEffect(() => {
     if (!products.length) {
@@ -131,6 +135,74 @@ export default function AdminPricing({
               )}
             </div>
           </article>
+        </section>
+
+        <section className="admin-v3-card admin-v3-panel" style={{ marginTop: '20px' }}>
+          <h2>Publish rate sheet</h2>
+          <form onSubmit={publishRateSheet}>
+            <div className="admin-v3-stack">
+              <input
+                className="admin-v3-input admin-v3-input-compact"
+                placeholder="Investor ID (e.g. FANNIE_MAE)"
+                name="investorId"
+                value={rateSheetForm?.investorId || ''}
+                onChange={handleInput(setRateSheetForm)}
+                required
+              />
+              <input
+                className="admin-v3-input admin-v3-input-compact"
+                type="datetime-local"
+                name="effectiveAt"
+                value={rateSheetForm?.effectiveAt || ''}
+                onChange={handleInput(setRateSheetForm)}
+              />
+              <input
+                className="admin-v3-input admin-v3-input-compact"
+                type="datetime-local"
+                name="expiresAt"
+                value={rateSheetForm?.expiresAt || ''}
+                onChange={handleInput(setRateSheetForm)}
+              />
+              <input
+                className="admin-v3-input admin-v3-input-compact"
+                placeholder="Source (e.g. fannie-mae-morning-2026-04-02)"
+                name="source"
+                value={rateSheetForm?.source || ''}
+                onChange={handleInput(setRateSheetForm)}
+              />
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>
+                Entries (one per line: productTermId,rate,price)
+              </label>
+              <textarea
+                className="admin-v3-input"
+                name="entriesCsv"
+                rows={6}
+                style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+                placeholder="CONVENTIONAL_30,0.0675,-0.5000"
+                value={rateSheetForm?.entriesCsv || ''}
+                onChange={handleInput(setRateSheetForm)}
+              />
+              <button
+                type="submit"
+                className="admin-v3-btn admin-v3-btn-blue"
+                disabled={loadingTarget === 'publish-rate-sheet'}
+              >
+                {loadingTarget === 'publish-rate-sheet' ? 'Publishing...' : 'Publish rate sheet'}
+              </button>
+            </div>
+          </form>
+          {rateSheetResult && (
+            <div className="admin-v3-card admin-v3-panel" style={{ marginTop: '16px', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <h3 style={{ margin: '0 0 10px', color: '#15803d' }}>Rate sheet published</h3>
+              <div className="admin-v3-stack" style={{ fontSize: '0.875rem', color: '#374151' }}>
+                <div><strong>ID:</strong> {rateSheetResult.id}</div>
+                <div><strong>Investor:</strong> {rateSheetResult.investorId}</div>
+                <div><strong>Status:</strong> {rateSheetResult.status}</div>
+                <div><strong>Effective at:</strong> {rateSheetResult.effectiveAt}</div>
+                <div><strong>Expires at:</strong> {rateSheetResult.expiresAt}</div>
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </AdminShell>

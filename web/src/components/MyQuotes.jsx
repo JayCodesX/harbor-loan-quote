@@ -2,7 +2,7 @@ import BorrowerShell from './BorrowerShell'
 import './BorrowerStyles.css'
 
 const fmtDollars = (n) => n != null ? `$${Math.round(n).toLocaleString('en-US')}` : '—'
-const fmtRate = (n) => n != null ? `${parseFloat(n).toFixed(3)}%` : '—'
+const fmtRate = (n) => n != null ? `${(parseFloat(n) * 100).toFixed(3)}%` : '—'
 const fmtDate = (s) => {
   if (!s) return '—'
   const d = new Date(s)

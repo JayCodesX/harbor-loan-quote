@@ -32,6 +32,14 @@ export const defaultProductForm = {
   active: 'true',
 }
 
+export const defaultRateSheetForm = {
+  investorId: 'FANNIE_MAE',
+  effectiveAt: '',
+  expiresAt: '',
+  source: '',
+  entriesCsv: '',
+}
+
 export const defaultPartnerForm = {
   displayName: '',
   companyName: '',

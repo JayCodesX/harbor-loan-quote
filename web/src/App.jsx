@@ -39,6 +39,8 @@ function App() {
   const [subscriptionReceipt, setSubscriptionReceipt] = useState(null)
   const [unsubscribeToken, setUnsubscribeToken] = useState('')
   const [unsubscribeMessage, setUnsubscribeMessage] = useState('')
+  const [showSubscribePanel, setShowSubscribePanel] = useState(false)
+  const [rateAlertBanner, setRateAlertBanner] = useState('')
   const [policyVersions, setPolicyVersions] = useState(null)
   const [authState, setAuthState] = useState(() => getStoredAuth())
   const [sessionId] = useState(() => getOrCreateSessionId())
@@ -66,6 +68,7 @@ function App() {
     lenders: `${API_BASE_URL}/directory/lenders`,
     mortgage: `${API_BASE_URL}/loans/mortgage-payment/calculate`,
     amortization: `${API_BASE_URL}/loans/amortization/calculate`,
+    rateAlerts: `${API_BASE_URL}/rate-alerts/stream`,
   }), [])
 
 const saveAuthState = (nextAuthState) => {
@@ -85,6 +88,14 @@ const saveAuthState = (nextAuthState) => {
   const handleInput = (setter) => (event) => {
     const { name, value } = event.target
     setter((current) => ({ ...current, [name]: value }))
+  }
+
+  const handleSubscriptionInput = (event) => {
+    const { name, type, checked, value } = event.target
+    setSubscriptionForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? String(checked) : value,
+    }))
   }
 
   const refreshAuthSession = async (currentAuthState = authState) => {
@@ -788,6 +799,24 @@ const saveAuthState = (nextAuthState) => {
   }, [endpoints.quoteEventsBase, quoteResult?.id, quoteResult?.processingStatus])
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !authState?.accessToken) {
+      return undefined
+    }
+    const url = `${endpoints.rateAlerts}?sessionId=${encodeURIComponent(sessionId)}`
+    const stream = new EventSource(url)
+    stream.addEventListener('rate-alert', (event) => {
+      try {
+        const payload = JSON.parse(event.data)
+        const investor = payload.investorId ? payload.investorId.replace(/_/g, ' ') : 'an investor'
+        setRateAlertBanner(`Rate update: ${investor} has published new rates. Your quote may be affected.`)
+      } catch {
+      }
+    })
+    stream.onerror = () => stream.close()
+    return () => stream.close()
+  }, [authState?.accessToken, endpoints.rateAlerts, sessionId])
+
+  useEffect(() => {
     if (typeof document === 'undefined') {
       return undefined
     }
@@ -837,6 +866,16 @@ const saveAuthState = (nextAuthState) => {
       quoteHistory={quoteHistory}
       onSelectBorrowerQuote={loadBorrowerQuote}
       onDeleteBorrowerQuote={handleDeleteBorrowerQuote}
+      showSubscribePanel={showSubscribePanel}
+      onSubscribeClick={() => setShowSubscribePanel(true)}
+      onCloseSubscribePanel={() => { setShowSubscribePanel(false); setSubscriptionMessage('') }}
+      subscriptionForm={subscriptionForm}
+      handleSubscriptionInput={handleSubscriptionInput}
+      handleSubscriptionSubmit={handleSubscriptionSubmit}
+      subscriptionMessage={subscriptionMessage}
+      subscriptionReceipt={subscriptionReceipt}
+      rateAlertBanner={rateAlertBanner}
+      onDismissRateAlert={() => setRateAlertBanner('')}
     />
   )
 }

@@ -56,6 +56,16 @@ export default function BorrowerApp({
   amortizationResult,
   handleMortgageSubmit,
   handleAmortizationSubmit,
+  showSubscribePanel,
+  onSubscribeClick,
+  onCloseSubscribePanel,
+  subscriptionForm,
+  handleSubscriptionInput,
+  handleSubscriptionSubmit,
+  subscriptionMessage,
+  subscriptionReceipt,
+  rateAlertBanner,
+  onDismissRateAlert,
 }) {
   const resolvedView = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -70,6 +80,16 @@ export default function BorrowerApp({
     authState,
     onSignOut,
     activeView: resolvedView,
+    onSubscribeClick,
+    showSubscribePanel,
+    onCloseSubscribePanel,
+    subscriptionForm,
+    onSubscriptionInput: handleSubscriptionInput,
+    handleSubscriptionSubmit,
+    subscriptionMessage,
+    subscriptionReceipt,
+    rateAlertBanner,
+    onDismissRateAlert,
   }
 
   if (resolvedView === 'my-quotes') {
@@ -87,6 +107,7 @@ export default function BorrowerApp({
       <QuoteResults
         {...commonProps}
         quoteResult={quoteResult}
+        loadingTarget={loadingTarget}
       />
     )
   }

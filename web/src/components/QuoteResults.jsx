@@ -1,30 +1,44 @@
 import BorrowerShell from './BorrowerShell'
 import './BorrowerStyles.css'
-import { formatCurrency } from '../lib/demoApp'
+import { formatCurrency, getQuoteStatusMeta, isQuoteInFlight } from '../lib/demoApp'
 
 export default function QuoteResults({
   setActiveView,
   authState,
   onSignOut,
   quoteResult,
+  loadingTarget,
+  activeView,
 }) {
   const payment = quoteResult?.estimatedMonthlyPayment
   const principalInterest = payment ? Math.round(payment * 0.70) : null
   const taxesInsurance = payment ? Math.round(payment * 0.22) : null
   const hoaFees = payment ? Math.round(payment * 0.08) : null
+  const meta = getQuoteStatusMeta(quoteResult)
 
   return (
-    <BorrowerShell setActiveView={setActiveView} authState={authState} onSignOut={onSignOut}>
+    <BorrowerShell setActiveView={setActiveView} authState={authState} onSignOut={onSignOut} activeView={activeView}>
       <div className="borrower-v3-layout">
         <section className="borrower-v3-card borrower-v3-hero-row">
-          <div>
-            <h1 className="borrower-v3-hero-title">Initial quote result</h1>
-            <p className="borrower-v3-hero-metric">
-              Estimated monthly payment: <strong>{payment ? formatCurrency(payment) : '--'}</strong>
-            </p>
-            <p className="borrower-v3-hero-copy">Confidence is moderate. Add borrower details to tighten lender + agent fit.</p>
-          </div>
-          <button type="button" className="borrower-v3-btn borrower-v3-btn-primary" onClick={() => setActiveView?.(authState ? 'quote-refine' : 'auth')}>Refine quote</button>
+          {isQuoteInFlight(quoteResult) ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span className="borrower-v3-processing-dot" />
+                <span className="borrower-v3-badge">{meta.badge}</span>
+              </div>
+              <h1 className="borrower-v3-hero-title">{meta.headline}</h1>
+              <p className="borrower-v3-hero-copy">{meta.detail}</p>
+            </div>
+          ) : (
+            <div>
+              <h1 className="borrower-v3-hero-title">Initial quote result</h1>
+              <p className="borrower-v3-hero-metric">Estimated monthly payment: <strong>{payment ? formatCurrency(payment) : '--'}</strong></p>
+              <p className="borrower-v3-hero-copy">Confidence is moderate. Add borrower details to tighten lender + agent fit.</p>
+            </div>
+          )}
+          {!isQuoteInFlight(quoteResult) && (
+            <button type="button" className="borrower-v3-btn borrower-v3-btn-primary" onClick={() => setActiveView?.(authState ? 'quote-refine' : 'auth')}>Refine quote</button>
+          )}
         </section>
 
         <section className="borrower-v3-grid-2">

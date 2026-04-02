@@ -9,6 +9,7 @@ import {
   defaultLoanForm,
   defaultPartnerForm,
   defaultProductForm,
+  defaultRateSheetForm,
   defaultReportForm,
   formatCurrency,
   getOrCreateSessionId,
@@ -38,6 +39,8 @@ function App() {
   const [editingAgentId, setEditingAgentId] = useState(null)
   const [reportForm, setReportForm] = useState(defaultReportForm)
   const [reportResult, setReportResult] = useState(null)
+  const [rateSheetForm, setRateSheetForm] = useState(defaultRateSheetForm)
+  const [rateSheetResult, setRateSheetResult] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [loadingTarget, setLoadingTarget] = useState('')
   const [sessionId] = useState(() => getOrCreateSessionId())
@@ -58,6 +61,7 @@ function App() {
     agentSync: `${API_BASE_URL}/admin/agents/sync`,
     reports: `${API_BASE_URL}/admin/reports/query`,
     reportExport: `${API_BASE_URL}/admin/reports/export`,
+    rateSheets: `${API_BASE_URL}/admin/rate-sheets`,
     mortgage: `${API_BASE_URL}/loans/mortgage-payment/calculate`,
     amortization: `${API_BASE_URL}/loans/amortization/calculate`,
   }), [])
@@ -298,6 +302,45 @@ function App() {
   const resetProductForm = () => {
     setEditingProductId(null)
     setProductForm(defaultProductForm)
+  }
+
+  const parseRateSheetEntries = (csv) => {
+    if (!csv.trim()) return []
+    return csv.trim().split('\n').map((line) => {
+      const parts = line.split(',').map((s) => s.trim())
+      return {
+        productTermId: parts[0] || '',
+        rate: parts[1] ? Number(parts[1]) : 0,
+        price: parts[2] ? Number(parts[2]) : 0,
+      }
+    }).filter((e) => e.productTermId)
+  }
+
+  const publishRateSheet = async (event) => {
+    event.preventDefault()
+    if (!authState?.accessToken) {
+      setErrorMessage('Sign in as an admin before publishing a rate sheet.')
+      return
+    }
+    const entries = parseRateSheetEntries(rateSheetForm.entriesCsv)
+    const result = await callApi('publish-rate-sheet', endpointPreview.rateSheets, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${authState.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        investorId: rateSheetForm.investorId,
+        effectiveAt: rateSheetForm.effectiveAt || null,
+        expiresAt: rateSheetForm.expiresAt || null,
+        source: rateSheetForm.source,
+        entries,
+      }),
+    })
+    if (result) {
+      setRateSheetResult(result)
+      setRateSheetForm(defaultRateSheetForm)
+    }
   }
 
   const loadPartners = async (partnerType) => {
@@ -622,6 +665,10 @@ function App() {
       reportResult={reportResult}
       runReport={runReport}
       exportReport={exportReport}
+      rateSheetForm={rateSheetForm}
+      setRateSheetForm={setRateSheetForm}
+      rateSheetResult={rateSheetResult}
+      publishRateSheet={publishRateSheet}
       endpointPreview={endpointPreview}
       formatCurrency={formatCurrency}
       isAdmin={isAdmin}

@@ -84,6 +84,17 @@ public class AdminMetricsClientService {
                 .toBodilessEntity();
     }
 
+    public AdminRateSheetPublishResponseDto publishRateSheet(AdminRateSheetPublishRequestDto request) {
+        return RestClient.builder().baseUrl(properties.pricingBaseUrl()).build()
+                .post()
+                .uri("/internal/admin/rate-sheets")
+                .header(HttpHeaders.AUTHORIZATION, bearer(properties.pricingAudience(), properties.pricingScope()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(AdminRateSheetPublishResponseDto.class);
+    }
+
     private <T> T get(String baseUrl, String audience, String scope, Class<T> responseType) {
         return RestClient.builder().baseUrl(baseUrl).build()
                 .get()
