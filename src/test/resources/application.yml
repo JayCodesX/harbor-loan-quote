@@ -1,9 +1,4 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:mortgage-test-db;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
   data:
     redis:
       repositories:
@@ -19,14 +14,14 @@ app:
     enabled: false
     consumer-enabled: false
   service-token:
-    secret: test-service-token-secret-12345678901234567890
+    private-key: MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQClJ4b8kkiPiv/ld5mFq1zV10Gp52PmBuEiHhbO5nl65FsbKorRfaAc6EcGu8o5Yucn+wx9Fp64oi0IXmPpMiM7FOQ5eBuKKbwSmlBVpzbkE0xqqsO8Ar/Sw+lemFtrxDZVbQAAKhPZewbvQCAjNYUhZwAC+BAdpryTP0Fqd62jYE5I7Pq8HJHOUDGKQXNH0JM3TY7gl5o528M82PHItrGJEwP5hbUfEsQ8hHQG3d2XmQ3HJUy7fXGrsyZ1yqm7YFuspsMPMGQw9IGlbaX7dKyoXOTXPhzC45LRmnPIwOgDVxru3kXYHM6lxPatVmgBl4PJd5nRSZ4YCEPLN0SqVPCFAgMBAAECggEAVBKlItoM2hW2YsfZfTRY0/r6UFWcgzKpVMbgcX7eBHNO9atYc4ByC4Uq8wCR11jDt5STLPJg5jiYmBQE5GdDjAX8kEzWKCVKumWX06KFzOEOG5bGgWUc5VwZ5q/Eij2eMyqDv5Gr/SAlzZFlSscp+HEIjnpdKdsBUCv5TwuRdwL0HWQ8HOQ3biAZaKaC7k6XWp/rssGIDu6erVPHqsJ0UEuBbLr0ti6IjAddPQrjtyruflzZMiy6o9qGo1zZfBDBW/F2j8ORsm6G0S/Brp98rGa74hAqtmYOcnOHsTv6cWOQBXoAVNEA4GTKWsWZaUzms+4wiXhDVVxUkY7wRYIfQQKBgQDU8vcmgf7nbu3u75p44D7Q9mPNFY/w4Du2Q7jU4nRvu8F6ILl7nXkvyyyJB/8Pntb0EU8W/4g3HaFgAeCEqXeDixHqbrWWqKZ9P50qEaLLYDHUk6EY2fdsT4wK4pixFboKXpkeX3g8QvONq6hZ7a38ppyWGPhsfRn6KgQlCgC+bQKBgQDGivsU2ABR6TeRplTv9mPvlCT2ZZASr954GB9ab5ycW5WyHXTYHz+A/nkqLN0cURL3H8AFlVx9uTNJ8e5fv8WJIsWtBGbXPzi4uY63YRoAAc7EA9zCiyHblL+106LSmHwasyc6uagyLnj90+5y4k8Xzde9+KzuSBtQ0BaEtlVLeQKBgQDDh5SINzTnLGQs0LT16HHFTXe2B+ZzNnGdmfFNB+IB9lRg30twxddQmy35ZO4+WYrl8D6+z0Mz2HEkxpRxO2oRztBUgfMasyCsQIz+49KnC1y15Bg3yWv2d9QO6qFpeJmqi9HsoZy1OISJwOSELkljg1ikOalhdD02Bv5nRBgKwQKBgEik02d1/O/7f/yHum4uXbRsJPYOhR+BP8n7MYWabtf63pPUGUt2a3rcISMgVSqmM2U+NbkVREkv+ScmIQzhkvoxQdijUqmRFUTph+Fq4uN7xdaMfzqjQ5kfHOH/dITPjCEMyd6/zV3HCTf+UjGwwjW4eCanFUb+FRiFeqfGOwEpAoGAANNHUkpbIoXwaS3PKtY7hX0Gtcrc9ZmM0LhZUBFE85yaQdvArbqmNJn2ej9yMeeb09IyDsTFUPeDBSy/YOb6gJk/qnE0a1i8zGEUJboSExm2YAD73pa2gE8vWmczy4+7bDo1AfdWiEVDbeHv5JiEpDOtXT9SG28XItMBIudKTpg=
+    key-id: harbor-test-key-1
     issuer: mortgage-loan-api
     audience: pricing-service
     scope: pricing:write
     ttl-seconds: 300
   borrower-service:
     base-url: http://localhost:8087
-    secret: borrower-service-test-secret-12345678901234567890
     audience: borrower-service
     scope: borrower:read
   user-token:

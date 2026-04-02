@@ -3,6 +3,9 @@ package com.jaycodesx.mortgage.quote.service;
 import com.jaycodesx.mortgage.lead.model.MortgageLead;
 import com.jaycodesx.mortgage.lead.repository.MortgageLeadRepository;
 import com.jaycodesx.mortgage.infrastructure.metrics.QuoteMetricsService;
+import com.jaycodesx.mortgage.pricing.dto.QuoteCalculationRequestDto;
+import com.jaycodesx.mortgage.pricing.dto.QuoteCalculationResponseDto;
+import com.jaycodesx.mortgage.pricing.service.PricingServiceClient;
 import com.jaycodesx.mortgage.quote.dto.LoanQuoteResponseDto;
 import com.jaycodesx.mortgage.quote.dto.PublicLoanQuoteRequestDto;
 import com.jaycodesx.mortgage.quote.dto.QuoteRefinementRequestDto;
@@ -41,9 +44,11 @@ class LoanQuoteServiceTest {
     private QuoteSessionService quoteSessionService;
 
     @Mock
-    private QuoteJobPublisher quoteJobPublisher;
+    private PricingServiceClient pricingServiceClient;
+
     @Mock
     private QuoteMetricsService quoteMetricsService;
+
     @Mock
     private QuoteNotificationPublisher quoteNotificationPublisher;
 
@@ -51,7 +56,7 @@ class LoanQuoteServiceTest {
     private LoanQuoteService loanQuoteService;
 
     @Test
-    void createPublicQuoteQueuesWork() throws Exception {
+    void createPublicQuoteCallsPricingAndReturnsCompleted() throws Exception {
         PublicLoanQuoteRequestDto request = new PublicLoanQuoteRequestDto(
                 new BigDecimal("450000.00"),
                 new BigDecimal("90000.00"),
@@ -70,22 +75,27 @@ class LoanQuoteServiceTest {
             idField.set(quote, 10L);
             return quote;
         });
+        QuoteCalculationResponseDto pricingResult = new QuoteCalculationResponseDto(
+                10L, "PUBLIC", "ESTIMATED",
+                new BigDecimal("6.0500"), new BigDecimal("6.2300"), new BigDecimal("360000.00"),
+                new BigDecimal("2178.44"), new BigDecimal("99450.00"), "Market Estimate"
+        );
+        when(pricingServiceClient.calculate(any(QuoteCalculationRequestDto.class))).thenReturn(pricingResult);
 
         LoanQuoteResponseDto result = loanQuoteService.createPublicQuote("session-1", request);
 
         assertThat(result.id()).isEqualTo(10L);
         assertThat(result.sessionId()).isEqualTo("session-1");
-        assertThat(result.processingStatus()).isEqualTo("QUEUED");
-        assertThat(result.quoteStatus()).isEqualTo("REQUESTED");
-        verify(quoteSessionService).rememberQuote("fp-1", 10L, "QUEUED");
+        assertThat(result.processingStatus()).isEqualTo("COMPLETED");
+        assertThat(result.quoteStatus()).isEqualTo("ESTIMATED");
+        assertThat(result.estimatedRate()).isEqualByComparingTo("6.0500");
+        verify(pricingServiceClient).calculate(any(QuoteCalculationRequestDto.class));
         verify(quoteMetricsService).recordQuoteStarted(10L, "session-1");
-        verify(quoteJobPublisher).publish(any(QuoteJobMessage.class));
-        verify(quoteNotificationPublisher).publish(any(QuoteNotificationMessage.class));
         verify(quoteNotificationPublisher).publish(any(QuoteNotificationMessage.class));
     }
 
     @Test
-    void createPublicQuoteReturnsDuplicateWhenFingerprintIsInFlight() throws Exception {
+    void createPublicQuoteReturnsDuplicateWhenFingerprintMatches() throws Exception {
         PublicLoanQuoteRequestDto request = new PublicLoanQuoteRequestDto(
                 new BigDecimal("450000.00"),
                 new BigDecimal("90000.00"),
@@ -96,7 +106,7 @@ class LoanQuoteServiceTest {
         );
         LoanQuote quote = buildQuote();
         quote.setSessionId("session-1");
-        quote.setProcessingStatus("PROCESSING");
+        quote.setProcessingStatus("COMPLETED");
         when(quoteSessionService.resolveSessionId("session-1")).thenReturn("session-1");
         when(quoteSessionService.fingerprintPublicQuote("session-1", request)).thenReturn("fp-1");
         when(quoteSessionService.findQuoteId("fp-1")).thenReturn(Optional.of(5L));
@@ -108,7 +118,7 @@ class LoanQuoteServiceTest {
 
         assertThat(result.id()).isEqualTo(5L);
         assertThat(result.duplicate()).isTrue();
-        assertThat(result.processingStatus()).isEqualTo("PROCESSING");
+        assertThat(result.processingStatus()).isEqualTo("COMPLETED");
         verify(quoteMetricsService).recordQuoteDeduped();
     }
 
@@ -134,12 +144,12 @@ class LoanQuoteServiceTest {
     }
 
     @Test
-    void refineQuoteQueuesWork() throws Exception {
+    void refineQuoteCallsPricingAndReturnsCompleted() throws Exception {
         LoanQuote quote = buildQuote();
-        BorrowerQuoteProfile profile = new BorrowerQuoteProfile();
+        BorrowerQuoteProfile savedProfile = new BorrowerQuoteProfile();
         java.lang.reflect.Field profileId = BorrowerQuoteProfile.class.getDeclaredField("id");
         profileId.setAccessible(true);
-        profileId.set(profile, 8L);
+        profileId.set(savedProfile, 8L);
         QuoteRefinementRequestDto request = new QuoteRefinementRequestDto(
                 "Jay", "Stone", "jay@jaycodesx.dev", "555-111-0101",
                 new BigDecimal("140000.00"), new BigDecimal("900.00"), 760,
@@ -151,17 +161,24 @@ class LoanQuoteServiceTest {
         when(loanQuoteRepository.findById(5L)).thenReturn(Optional.of(quote));
         when(loanQuoteRepository.save(any(LoanQuote.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(borrowerQuoteProfileRepository.findByLoanQuoteId(5L)).thenReturn(Optional.empty());
-        when(borrowerQuoteProfileRepository.save(any(BorrowerQuoteProfile.class))).thenReturn(profile);
+        when(borrowerQuoteProfileRepository.save(any(BorrowerQuoteProfile.class))).thenReturn(savedProfile);
         when(mortgageLeadRepository.findByLoanQuoteId(5L)).thenReturn(Optional.empty());
+        when(mortgageLeadRepository.save(any(MortgageLead.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        QuoteCalculationResponseDto pricingResult = new QuoteCalculationResponseDto(
+                5L, "REFINED", "LEAD_READY",
+                new BigDecimal("5.9500"), new BigDecimal("6.1300"), new BigDecimal("360000.00"),
+                new BigDecimal("2145.00"), new BigDecimal("99500.00"), "Prime"
+        );
+        when(pricingServiceClient.calculate(any(QuoteCalculationRequestDto.class))).thenReturn(pricingResult);
 
         LoanQuoteResponseDto response = loanQuoteService.refineQuote(5L, "session-5", request);
 
-        assertThat(response.quoteStatus()).isEqualTo("REFINEMENT_REQUESTED");
-        assertThat(response.processingStatus()).isEqualTo("QUEUED");
+        assertThat(response.processingStatus()).isEqualTo("COMPLETED");
+        assertThat(response.quoteStatus()).isEqualTo("LEAD_READY");
         assertThat(response.borrowerProfileCaptured()).isTrue();
-        verify(quoteSessionService).rememberQuote("refine-1", 5L, "QUEUED");
+        verify(pricingServiceClient).calculate(any(QuoteCalculationRequestDto.class));
         verify(quoteMetricsService).recordQuoteRefinementRequested(5L, "session-5");
-        verify(quoteJobPublisher).publish(any(QuoteJobMessage.class));
+        verify(quoteNotificationPublisher).publish(any(QuoteNotificationMessage.class));
     }
 
     @Test
