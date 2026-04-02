@@ -1,8 +1,10 @@
 package com.jaycodesx.mortgage.infrastructure.config;
 
+import com.jaycodesx.mortgage.pricing.model.LlpaAdjustment;
 import com.jaycodesx.mortgage.pricing.model.PricingAdjustmentRule;
 import com.jaycodesx.mortgage.pricing.model.PricingProduct;
 import com.jaycodesx.mortgage.pricing.model.RateSheet;
+import com.jaycodesx.mortgage.pricing.repository.LlpaAdjustmentRepository;
 import com.jaycodesx.mortgage.pricing.repository.PricingAdjustmentRuleRepository;
 import com.jaycodesx.mortgage.pricing.repository.PricingProductRepository;
 import com.jaycodesx.mortgage.pricing.repository.RateSheetRepository;
@@ -11,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -20,15 +23,18 @@ public class PricingDataSeeder implements CommandLineRunner {
     private final PricingProductRepository pricingProductRepository;
     private final RateSheetRepository rateSheetRepository;
     private final PricingAdjustmentRuleRepository pricingAdjustmentRuleRepository;
+    private final LlpaAdjustmentRepository llpaAdjustmentRepository;
 
     public PricingDataSeeder(
             PricingProductRepository pricingProductRepository,
             RateSheetRepository rateSheetRepository,
-            PricingAdjustmentRuleRepository pricingAdjustmentRuleRepository
+            PricingAdjustmentRuleRepository pricingAdjustmentRuleRepository,
+            LlpaAdjustmentRepository llpaAdjustmentRepository
     ) {
         this.pricingProductRepository = pricingProductRepository;
         this.rateSheetRepository = rateSheetRepository;
         this.pricingAdjustmentRuleRepository = pricingAdjustmentRuleRepository;
+        this.llpaAdjustmentRepository = llpaAdjustmentRepository;
     }
 
     @Override
@@ -50,6 +56,9 @@ public class PricingDataSeeder implements CommandLineRunner {
                     rateSheet("JUMBO", "PRIMARY_RESIDENCE", "941", "0.1200")
             ));
         }
+        if (llpaAdjustmentRepository.count() == 0) {
+            seedFannieMaeLlpaAdjustments();
+        }
         if (pricingAdjustmentRuleRepository.count() == 0) {
             pricingAdjustmentRuleRepository.saveAll(List.of(
                     rule("TERM", "15", "-0.5500"),
@@ -70,6 +79,61 @@ public class PricingDataSeeder implements CommandLineRunner {
                     rule("FLAG", "VA_ELIGIBLE", "-0.1000")
             ));
         }
+    }
+
+    /**
+     * Seeds Fannie Mae LLPA adjustments based on publicly available single-family pricing matrices.
+     * Only non-zero adjustments are seeded — zero-adjustment rows have no effect on pricing.
+     * Effective date is set to epoch start to represent "always effective from the beginning".
+     */
+    private void seedFannieMaeLlpaAdjustments() {
+        LocalDateTime epoch = LocalDateTime.of(2024, 1, 1, 0, 0);
+
+        llpaAdjustmentRepository.saveAll(List.of(
+                // --- Credit Score (applied to all conventional products) ---
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"min\": 740, \"max\": 759}", "0.2500", epoch),
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"min\": 720, \"max\": 739}", "0.5000", epoch),
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"min\": 700, \"max\": 719}", "0.7500", epoch),
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"min\": 680, \"max\": 699}", "1.0000", epoch),
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"min\": 660, \"max\": 679}", "1.2500", epoch),
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"min\": 640, \"max\": 659}", "1.5000", epoch),
+                llpa("FANNIE_MAE", null, "CREDIT_SCORE", "{\"max\": 639}",               "2.0000", epoch),
+
+                // --- LTV ---
+                llpa("FANNIE_MAE", null, "LTV", "{\"max\": 60}",              "-0.2500", epoch),
+                llpa("FANNIE_MAE", null, "LTV", "{\"min\": 70.01, \"max\": 75}", "0.2500", epoch),
+                llpa("FANNIE_MAE", null, "LTV", "{\"min\": 75.01, \"max\": 80}", "0.5000", epoch),
+                llpa("FANNIE_MAE", null, "LTV", "{\"min\": 80.01, \"max\": 85}", "0.7500", epoch),
+                llpa("FANNIE_MAE", null, "LTV", "{\"min\": 85.01, \"max\": 90}", "1.0000", epoch),
+                llpa("FANNIE_MAE", null, "LTV", "{\"min\": 90.01, \"max\": 95}", "1.2500", epoch),
+                llpa("FANNIE_MAE", null, "LTV", "{\"min\": 95.01}",              "1.5000", epoch),
+
+                // --- Occupancy ---
+                llpa("FANNIE_MAE", null, "OCCUPANCY", "{\"equals\": \"SECOND_HOME\"}", "1.0000", epoch),
+                llpa("FANNIE_MAE", null, "OCCUPANCY", "{\"equals\": \"INVESTMENT\"}",  "2.0000", epoch),
+
+                // --- Loan Purpose ---
+                llpa("FANNIE_MAE", null, "LOAN_PURPOSE", "{\"equals\": \"RATE_TERM_REFI\"}", "0.2500", epoch),
+                llpa("FANNIE_MAE", null, "LOAN_PURPOSE", "{\"equals\": \"CASH_OUT_REFI\"}",  "0.3750", epoch),
+
+                // --- Property Type ---
+                llpa("FANNIE_MAE", null, "PROPERTY_TYPE", "{\"equals\": \"CONDO\"}",       "0.3750", epoch),
+                llpa("FANNIE_MAE", null, "PROPERTY_TYPE", "{\"equals\": \"MANUFACTURED\"}", "0.5000", epoch),
+                llpa("FANNIE_MAE", null, "PROPERTY_TYPE", "{\"equals\": \"MULTI_UNIT\"}",   "0.7500", epoch)
+        ));
+    }
+
+    private LlpaAdjustment llpa(String investorId, String productType, String category,
+                                 String conditionJson, String priceAdjustment, LocalDateTime effectiveAt) {
+        LlpaAdjustment adj = new LlpaAdjustment();
+        adj.setInvestorId(investorId);
+        adj.setProductType(productType);
+        adj.setAdjustmentCategory(category);
+        adj.setConditionJson(conditionJson);
+        adj.setPriceAdjustment(new BigDecimal(priceAdjustment));
+        adj.setEffectiveAt(effectiveAt);
+        adj.setActive(true);
+        return adj;
     }
 
     private PricingProduct product(String code, String name, String rate) {
