@@ -1,7 +1,7 @@
 # ADR 0048: Dynamic Rate Sheet Update Strategy
 
 ## Status
-Proposed
+Accepted
 
 ## Date
 2026-04-02

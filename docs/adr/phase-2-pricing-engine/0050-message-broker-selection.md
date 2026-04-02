@@ -1,7 +1,7 @@
 # ADR 0050: Message Broker Selection — RabbitMQ (Phase 2) and SQS (Phase 3)
 
 ## Status
-Proposed
+Accepted
 
 ## Date
 2026-04-02

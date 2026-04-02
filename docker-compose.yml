@@ -183,12 +183,19 @@ services:
       APP_PRICING_RESULT_TOKEN_ISSUER: pricing-service
       APP_PRICING_RESULT_TOKEN_AUDIENCE: mortgage-loan-api
       APP_PRICING_RESULT_TOKEN_SCOPE: quote:write
+      APP_TRANSPORT_TYPE: rabbitmq
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       localstack:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8084/actuator/health | grep -q '\"status\":\"UP\"'"]
@@ -268,10 +275,17 @@ services:
       APP_SERVICE_TOKEN_ISSUER: mortgage-loan-api
       APP_SERVICE_TOKEN_AUDIENCE: notification-service
       APP_SERVICE_TOKEN_SCOPE: notification:write
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      APP_RABBITMQ_CONSUMER_ENABLED: true
     depends_on:
       redis:
         condition: service_healthy
       localstack:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8089/actuator/health | grep -q '\"status\":\"UP\"'"]
@@ -389,6 +403,24 @@ services:
       - ./keycloak/realm-import:/opt/keycloak/data/import:ro
     ports:
       - "18080:8080"
+
+  rabbitmq:
+    profiles: ["integration"]
+    image: rabbitmq:3.13-management-alpine
+    container_name: mortgage-loan-rabbitmq
+    mem_limit: 256m
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   mysql:
     image: mysql:8.4

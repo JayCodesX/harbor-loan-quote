@@ -1,6 +1,11 @@
 spring:
   application:
     name: notification-service
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -9,6 +14,9 @@ spring:
         enabled: false
 
 app:
+  rabbitmq:
+    consumer:
+      enabled: ${APP_RABBITMQ_CONSUMER_ENABLED:false}
   messaging:
     enabled: ${APP_MESSAGING_ENABLED:true}
     consumer-enabled: ${APP_MESSAGING_CONSUMER_ENABLED:true}

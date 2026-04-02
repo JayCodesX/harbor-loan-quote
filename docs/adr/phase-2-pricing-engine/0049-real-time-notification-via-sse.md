@@ -1,7 +1,7 @@
 # ADR 0049: Real-Time Borrower Notification via Server-Sent Events (SSE)
 
 ## Status
-Proposed
+Accepted
 
 ## Date
 2026-04-01
