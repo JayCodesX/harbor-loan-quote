@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import AdminShell from './AdminShell'
 import './AdminStyles.css'
 
@@ -28,6 +28,19 @@ export default function AdminPricing({
       loadProducts()
     }
   }, [products, loadProducts])
+
+  const csvFileInputRef = useRef(null)
+
+  const handleCsvFileUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      setRateSheetForm((prev) => ({ ...prev, entriesCsv: evt.target.result }))
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   const handleProductClick = (product) => {
     startEditProduct(product)
@@ -170,9 +183,26 @@ export default function AdminPricing({
                 value={rateSheetForm?.source || ''}
                 onChange={handleInput(setRateSheetForm)}
               />
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.25rem' }}>
-                Entries (one per line: productTermId,rate,price)
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>
+                  Entries (one per line: productTermId,rate,price)
+                </label>
+                <button
+                  type="button"
+                  className="admin-v3-btn admin-v3-btn-blue"
+                  style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                  onClick={() => csvFileInputRef.current?.click()}
+                >
+                  Upload CSV
+                </button>
+                <input
+                  ref={csvFileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  style={{ display: 'none' }}
+                  onChange={handleCsvFileUpload}
+                />
+              </div>
               <textarea
                 className="admin-v3-input"
                 name="entriesCsv"
