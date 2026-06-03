@@ -41,7 +41,7 @@ ADRs are grouped by delivery phase:
 ---
 
 ### A note on implementation status
-These ADRs capture **design decisions**. Some are realized in code (service decomposition, synchronous quote calculation, auth, testing); others — notably the async messaging stack ([0007](./phase-1-foundation/0007-messaging-transport-abstraction.md), [0050](./phase-2-pricing-engine/0050-message-broker-selection.md)) — are **designed and scaffolded but not yet wired end to end**. See the [architecture overview](../architecture.md) for what currently runs vs. what is target design.
+These ADRs capture **design decisions**. The 6→3 service consolidation is complete: harbor-api now owns auth, borrowers, leads, and quotes in-process; the standalone auth-service, borrower-service, and lead-service modules are gone. The async messaging layer runs locally over RabbitMQ — harbor-api and pricing-service publish to topic exchanges, and notification-service consumes both flows (ADR-0007, ADR-0050). SQS remains the Phase-3 target adapter, available behind the `integration` profile. See the [architecture overview](../architecture.md) for full detail.
 
 ### Archive
 The [`archive/`](./archive) folder holds earlier exploratory ADRs that are **no longer active** and not slated for implementation. They are retained for historical context only and are not part of the current design index above.

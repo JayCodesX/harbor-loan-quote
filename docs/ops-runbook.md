@@ -2,17 +2,19 @@
 
 Operator-facing procedures for running, verifying, and recovering the Harbor Loan Quotes stack. For system design, see [architecture.md](./architecture.md).
 
-> **Status note.** The asynchronous messaging layer is currently **scaffolded but not wired** — the default transport is `noop`, so the async pricing/lead/notification pipeline does not run yet. The "async pipeline" and "dead-letter queue" sections below describe the **intended** operator workflow for the LocalStack-SQS path once a transport is enabled. The synchronous flows (quotes, calculators, auth, borrower APIs, metrics, admin) run today.
+> **Status note.** The asynchronous messaging layer runs locally over RabbitMQ (the default transport in Docker Compose). harbor-api publishes quote notification snapshots; pricing-service publishes rate-sheet-activated events; notification-service consumes both. SQS/LocalStack is the optional Phase-3 adapter path, available behind the `integration` profile.
 
 ## Run modes
 
-**Lightweight local stack** — borrower app, auth, borrower APIs, MySQL, Redis, and edge routing:
+**Default stack — full 3-service RabbitMQ stack:**
 
 ```bash
 docker compose up -d --build
 ```
 
-**Full integration stack** — adds async pricing, lead generation, notifications, admin-web, and LocalStack queues:
+Brings up: `rabbitmq`, `mysql`, `redis`, `api`, `pricing-service`, `notification-service`, `admin-web`, `web`, `edge`.
+
+**Optional LocalStack/SQS profile (Phase-3 path):**
 
 ```bash
 docker compose --env-file .env.integration --profile integration up -d --build
@@ -23,12 +25,14 @@ make up
 Stop everything:
 
 ```bash
+docker compose down
+# or (integration profile):
 docker compose --env-file .env.integration --profile integration down
 # or:
 make down
 ```
 
-The [`.env.integration`](../.env.integration) file forces the async quote flow on so `api` publishes pricing jobs consistently for demos and CI.
+The [`.env.integration`](../.env.integration) file switches the transport to SQS so `api` publishes pricing jobs to LocalStack queues for demos and CI.
 
 ## Local URLs
 
@@ -36,6 +40,7 @@ The [`.env.integration`](../.env.integration) file forces the async quote flow o
 - Borrower app (TLS): `https://localhost:8443`
 - Admin app (TLS): `https://localhost:8443/admin/`
 - Health: `https://localhost:8443/actuator/health`
+- RabbitMQ management UI: `http://localhost:15672` (guest/guest)
 
 If local TLS certs are missing:
 
@@ -59,26 +64,29 @@ Then run the smoke check (verifies borrower quote flow, auth redirect, admin log
 make smoke
 ```
 
-## Verifying the async pipeline *(applies once a transport is enabled)*
+## Verifying the async pipeline
 
-> Prerequisite: a real transport (`rabbitmq` or `sqs`) must be configured and consumers enabled. With the default `noop` transport this section does not apply.
+A healthy quote notification flows through: harbor-api publishes → RabbitMQ `quote.notification.events` exchange → queue `quote.notification.snapshot` → notification-service → SSE to frontend.
 
-A healthy quote flows `QUEUED → PROCESSING → PRICED`. If a quote is stuck in `QUEUED`/`PROCESSING`:
+To verify locally:
 
-1. Confirm `pricing-service`, `lead-service`, and `notification-service` are running:
+1. Open the RabbitMQ management UI at **http://localhost:15672** (guest/guest) and confirm queues `quote.notification.snapshot` and `rate-sheet.activated` exist and have consumers attached.
+2. Submit a quote request via the borrower app or API. Watch the `quote.notification.snapshot` queue in the management UI for message throughput.
+3. Check consumer logs for schema-version rejections or processing errors:
    ```bash
-   docker compose --profile integration ps
-   ```
-2. Check consumer logs for schema-version rejections or processing errors:
-   ```bash
-   docker compose logs --tail=100 pricing-service
    docker compose logs --tail=100 notification-service
+   docker compose logs --tail=100 pricing-service
    ```
-3. Inspect the relevant dead-letter queue (see below).
+4. If a quote is stuck without an SSE update, inspect notification-service logs for consumer errors and confirm `APP_RABBITMQ_CONSUMER_ENABLED=true` is set.
 
-## Dead-letter queues (DLQ) *(LocalStack-SQS path, once enabled)*
+## Dead-letter queues (DLQ)
 
-> The `dlq-*.sh` scripts operate against LocalStack SQS. They apply to the SQS transport path once the async layer is wired; they do not cover the RabbitMQ path.
+### RabbitMQ (default local path)
+RabbitMQ dead-letter exchange (DLX) configuration is a follow-up. For now, use the management UI at `http://localhost:15672` to inspect unroutable or nacked messages, and service logs to diagnose failures.
+
+### SQS / LocalStack (Phase-3 path)
+
+> The `dlq-*.sh` scripts operate against LocalStack SQS. They apply to the `integration` profile only.
 
 Poison messages — those that fail processing or carry an unsupported schema version — are routed to a DLQ.
 
@@ -86,7 +94,6 @@ Poison messages — those that fail processing or carry an unsupported schema ve
 
 ```bash
 ./scripts/dlq-inspect.sh quote-pricing-results-dlq
-./scripts/dlq-inspect.sh quote-lead-results-dlq
 ./scripts/dlq-inspect.sh quote-notification-events-dlq
 ```
 
@@ -94,7 +101,6 @@ Poison messages — those that fail processing or carry an unsupported schema ve
 
 ```bash
 ./scripts/dlq-replay.sh quote-pricing-results-dlq      quote-pricing-results
-./scripts/dlq-replay.sh quote-lead-results-dlq         quote-lead-results
 ./scripts/dlq-replay.sh quote-notification-events-dlq  quote-notification-events
 ```
 
@@ -126,8 +132,9 @@ make e2e
 
 | Symptom | Likely cause | Action |
 |---|---|---|
-| Quote stuck in `QUEUED`/`PROCESSING` | Worker down or message in DLQ | Check worker logs, inspect the matching DLQ, replay after fix |
+| No SSE update after quote | RabbitMQ consumer down or misconfigured | Check `docker compose logs notification-service`; confirm `APP_RABBITMQ_CONSUMER_ENABLED=true`; inspect queues in management UI at http://localhost:15672 |
+| Quote stuck in `QUEUED`/`PROCESSING` | pricing-service or notification-service down | Check service logs; confirm rabbitmq is healthy (`docker compose ps`) |
+| RabbitMQ queues missing after restart | Queues are durable but exchange/queue declaration runs at startup | Restart notification-service so it re-declares the topology |
 | TLS errors on `https://localhost:8443` | Missing local certs | Run `./scripts/generate-local-certs.sh` |
 | Admin endpoints return 403 | Missing `ADMIN` role token | Authenticate as an admin user; confirm token role |
 | OIDC login fails | Keycloak not started or env mismatch | Start the `oidc` profile; verify issuer/audience/JWK URI env vars |
-| Async flow never triggers | Integration profile/env not used | Start with `--env-file .env.integration --profile integration` |

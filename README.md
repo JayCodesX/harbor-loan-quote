@@ -3,18 +3,18 @@
 Mortgage quote and lead-generation platform with a borrower-facing React app, a separate admin app, an edge Nginx proxy, and Spring Boot microservices.
 
 ## Highlights
-- **Microservices, domain-per-service** — 6 Spring Boot services, each owning its own domain and database schema (no cross-service table access).
+- **Three-service backend** — harbor-api owns loan quotes, auth, borrowers, leads, and admin in-process; pricing-service runs the async pricing engine; notification-service delivers SSE updates. Domain-per-service with no cross-service table access.
 - **Synchronous quote platform** — public quotes, refinement, calculators, auth, borrower APIs, and aggregated metrics are implemented and run today.
-- **Broker-agnostic async design** — a transport abstraction with NoOp / RabbitMQ / SQS adapters and versioned, idempotent message contracts, so the broker is a config choice ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md), [ADR-0050](./docs/adr/phase-2-pricing-engine/0050-message-broker-selection.md)). *Scaffolded — not yet wired end to end (default transport `noop`).*
+- **RabbitMQ async messaging, running locally** — harbor-api and pricing-service publish to RabbitMQ topic exchanges; notification-service consumes and pushes SSE to the frontend. Built on a broker-agnostic transport abstraction ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md), [ADR-0050](./docs/adr/phase-2-pricing-engine/0050-message-broker-selection.md)) so the broker is a config choice; SQS is the Phase-3 target.
 - **Pluggable security** — self-issued HMAC JWTs or OIDC (Keycloak), plus service-to-service JWTs validated on issuer/audience/scope/type.
 - **Two React frontends** (borrower + admin), an Nginx TLS edge, and a full Docker Compose stack.
 - **Tested** — JUnit across all services, frontend unit tests, and a Playwright E2E suite in CI.
 - **Decision-driven** — 50 [ADRs](./docs/adr) capture the design reasoning behind the system.
 
 ## Tech Stack
-**Backend:** Java 17, Spring Boot, MyBatis · **Data:** MySQL, Redis · **Async (designed):** broker-agnostic transport — RabbitMQ / SQS (LocalStack) · **Auth:** JWT, OIDC/Keycloak · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Jenkins CI
+**Backend:** Java 17, Spring Boot, MyBatis · **Data:** MySQL, Redis · **Async:** RabbitMQ (local default) via a broker-agnostic transport; SQS for Phase-3 · **Auth:** JWT, OIDC/Keycloak · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Jenkins CI
 
-> Note: this is a personal portfolio project demonstrating backend and distributed-systems **architecture and design reasoning**. The synchronous services run; the asynchronous messaging layer is scaffolded but not yet wired (default transport `noop`). All credentials in the repo are clearly-labeled local-development placeholders.
+> Note: this is a personal portfolio project demonstrating backend and distributed-systems **architecture and design reasoning**. The synchronous services and the RabbitMQ async pipeline all run with a single `docker compose up`. All credentials in the repo are clearly-labeled local-development placeholders.
 
 Additional docs:
 - [Architecture overview](./docs/architecture.md)
@@ -24,59 +24,48 @@ Additional docs:
 - `web`: borrower-facing React + Vite app served by Nginx
 - `admin-web`: admin React + Vite app served by Nginx at `/admin/`
 - `edge`: public Nginx reverse proxy on `8088` and `8443`
-- `api`: public quote orchestration, calculators, metrics aggregation, notification publishing
-- `auth-service`: registration, login, and internal JWT issuance
-- `borrower-service`: borrower ownership and borrower metrics
-- `pricing-service`: asynchronous pricing engine with a persisted pricing catalog
-- `lead-service`: asynchronous lead creation and lead metrics
-- `notification-service`: quote snapshot delivery and SSE notifications
+- `api` (harbor-api): public quote orchestration, calculators, metrics aggregation, notification publishing; also owns auth, borrowers, leads, and admin endpoints in-process
+- `pricing-service`: synchronous HTTP pricing engine with a persisted pricing catalog; publishes rate-sheet-activated events to RabbitMQ
+- `notification-service`: quote snapshot delivery and SSE notifications; consumes RabbitMQ events from harbor-api and pricing-service
+- `rabbitmq`: local message broker; management UI at `http://localhost:15672` (guest/guest)
 - `mysql`: relational persistence
 - `redis`: session state, dedupe state, cache support, metrics counters, notification snapshots
-- `localstack`: local SQS emulation
+- `localstack` *(optional — `integration` profile)*: local SQS emulation for the Phase-3 adapter path
 
 ## Architecture
 ```mermaid
 flowchart LR
     B["Borrower App (web)"] --> E["Nginx Edge"]
     A["Admin App (admin-web)"] --> E
-    E --> API["api"]
-    E --> AUTH["auth-service"]
-    E --> BORR["borrower-service"]
+    E --> API["harbor-api"]
     E --> NOTIFY["notification-service"]
     API --> REDIS["Redis"]
-    API --> MYSQLQ["mortgage_quote_workflow"]
-    API --> SQS["LocalStack SQS"]
-    AUTH --> MYSQLA["mortgage_auth"]
-    BORR --> MYSQLB["mortgage_borrower"]
-    SQS --> PRICING["pricing-service"]
+    API --> MYSQL["mortgage_quote_workflow\nmortgage_auth\nmortgage_lead"]
+    API -->|"sync HTTP"| PRICING["pricing-service"]
+    API -->|"quote.notification.events\nQUOTE_NOTIFICATION_SNAPSHOT"| MQ["RabbitMQ"]
     PRICING --> MYSQLP["mortgage_pricing"]
     PRICING --> REDIS
-    PRICING --> SQS
-    SQS --> LEAD["lead-service"]
-    LEAD --> MYSQLL["mortgage_lead"]
-    LEAD --> REDIS
-    API --> SQS
-    SQS --> NOTIFY
+    PRICING -->|"rate-sheet.events\nRATE_SHEET_ACTIVATED"| MQ
+    MQ -->|"quote.notification.snapshot\nrate-sheet.activated"| NOTIFY
     NOTIFY --> REDIS
     NOTIFY --> E
 ```
 
 ## What The System Does
 
-> Steps 3–7 are the **designed async flow** and depend on the messaging layer, which is scaffolded but not yet wired (default transport `noop`). Steps 1–2 and 8 run today.
-
 1. Anonymous user requests a public mortgage quote.
-2. `api` deduplicates repeated requests per session and persists quote state.
-3. `api` publishes a pricing job to SQS.
-4. `pricing-service` prices the scenario from its own persisted product catalog and publishes a result event.
-5. `api` consumes the pricing result and updates the quote read model.
-6. If the quote is refined by an authenticated user, `lead-service` creates a lead asynchronously and publishes a lead result event.
-7. `notification-service` stores the latest quote snapshot and serves SSE updates to the frontend.
-8. `admin-web` reads aggregated metrics through `api`.
+2. `harbor-api` deduplicates repeated requests per session and persists quote state.
+3. `harbor-api` calls `pricing-service` synchronously over HTTP; `pricing-service` prices the scenario from its persisted product catalog and returns a result.
+4. `harbor-api` updates the quote read model with the pricing result.
+5. If an authenticated user refines the quote, `harbor-api` captures the lead in-process.
+6. `harbor-api` publishes a quote notification snapshot to the `quote.notification.events` RabbitMQ exchange (routing key `QUOTE_NOTIFICATION_SNAPSHOT`).
+7. `notification-service` consumes from queue `quote.notification.snapshot`, stores the snapshot in Redis, and pushes an SSE update to the frontend.
+8. When a rate sheet is activated, `pricing-service` publishes a `RATE_SHEET_ACTIVATED` event to the `rate-sheet.events` exchange; `notification-service` consumes it from queue `rate-sheet.activated`.
+9. `admin-web` reads aggregated metrics through `harbor-api`.
 
 ## Service Boundaries
 
-### `api`
+### `api` (harbor-api)
 Owns:
 - public quote creation and retrieval
 - quote refinement orchestration
@@ -86,82 +75,72 @@ Owns:
 - quote metrics and admin summary aggregation
 - notification snapshot publishing
 - service-to-service JWT issuance for workers and internal clients
-
-### `auth-service`
-Owns:
-- user registration
-- user login
-- access token issuance
-- internal JWT authentication mode
-
-### `borrower-service`
-Owns:
-- borrower creation and retrieval
-- borrower existence checks for downstream services
-- borrower metrics
-- borrower persistence in `mortgage_borrower`
+- user registration, login, and access token issuance (auth)
+- borrower creation, retrieval, existence checks, and borrower metrics
+- lead creation from completed refined quotes and lead metrics
 
 ### `pricing-service`
 Owns:
-- pricing job consumption
+- synchronous quote pricing (called by harbor-api over HTTP per ADR-0003)
 - pricing catalog persistence in `mortgage_pricing`
 - pricing products, rate sheets, and adjustment rules
 - Redis pricing cache
 - pricing metrics
-- lead job publishing
-
-### `lead-service`
-Owns:
-- lead creation from completed refined quotes
-- lead persistence in `mortgage_lead`
-- lead metrics
+- rate-sheet-activated event publishing to RabbitMQ
 
 ### `notification-service`
 Owns:
-- quote notification event consumption
+- quote notification event consumption from RabbitMQ
+- rate-sheet-activated event consumption from RabbitMQ
 - latest quote snapshot cache in Redis
 - quote snapshot fetch endpoint
 - quote SSE endpoint used by the frontend
 
 ## Database Ownership
-- `auth-service` -> `mortgage_auth`
-- `borrower-service` -> `mortgage_borrower`
-- `api` -> `mortgage_quote_workflow`
-- `pricing-service` -> `mortgage_pricing`
-- `lead-service` -> `mortgage_lead`
-- `notification-service` -> Redis only
+- `api` (harbor-api) → `mortgage_quote_workflow` (auth, borrower, lead, and quote tables all in one schema owned by harbor-api)
+- `pricing-service` → `mortgage_pricing`
+- `notification-service` → Redis only
 
 Each service owns its own database schema — no cross-service table access.
 
-## Messaging Topology (target design — not yet wired)
+## Messaging Topology
 
-> **Status:** async messaging is built against a broker-agnostic transport abstraction ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md)) with NoOp / RabbitMQ / SQS adapters. The **default transport is `noop`**, so the async pipeline below does not run yet. RabbitMQ is the intended Phase-2 broker and SQS the Phase-3 target ([ADR-0050](./docs/adr/phase-2-pricing-engine/0050-message-broker-selection.md)). The topology below is the **designed** target; see [docs/architecture.md](./docs/architecture.md) for what currently runs.
+> **Status:** async messaging runs locally over RabbitMQ via the broker-agnostic transport abstraction ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md)). The active transport is `rabbitmq` (default in Docker Compose). SQS/LocalStack is the optional Phase-3 adapter path, available behind the `integration` profile. Lead processing is in-process in harbor-api (ADR-0003) — there are no lead queues.
 
-Designed queues (SQS naming; mirrored by RabbitMQ exchanges):
-- `quote-pricing-requests`
-- `quote-pricing-results`
-- `quote-lead-requests`
-- `quote-lead-results`
-- `quote-notification-events`
-- `quote-pricing-results-dlq`
-- `quote-lead-results-dlq`
-- `quote-notification-events-dlq`
+### Flow A — Quote notification (harbor-api → notification-service)
 
-### Message contract hardening (designed)
-All asynchronous message payloads are designed to include:
+| Component | Name |
+|---|---|
+| Exchange | `quote.notification.events` (topic) |
+| Routing key | `QUOTE_NOTIFICATION_SNAPSHOT` |
+| Queue | `quote.notification.snapshot` |
+
+### Flow B — Rate-sheet activation (pricing-service → notification-service)
+
+| Component | Name |
+|---|---|
+| Exchange | `rate-sheet.events` (topic) |
+| Routing key | `RATE_SHEET_ACTIVATED` |
+| Queue | `rate-sheet.activated` |
+
+### Message contract hardening
+All asynchronous message payloads carry:
 - `schemaVersion`
 - `messageId`
 
-Consumers are designed to:
+Consumers:
 - reject unsupported schema versions
 - dedupe deliveries on `messageId`
 - publish poison messages to DLQs when processing fails
 
+### SQS / LocalStack (Phase-3 path)
+The SQS adapter and LocalStack container exist behind the `integration` profile. The queues provisioned by `localstack/init/01-create-queues.sh` are the Phase-3 targets. Use the `dlq-*.sh` scripts against that path only.
+
 ## Security Model
 
 ### User authentication
-Two modes are supported for protected user-facing endpoints in `api` and `borrower-service`:
-- `internal`: built-in `auth-service` issues HMAC-signed JWTs
+Two modes are supported for protected user-facing endpoints in `api`:
+- `internal`: built-in auth (in harbor-api) issues HMAC-signed JWTs
 - `oidc`: local Keycloak issues OIDC access tokens validated from a configured JWK set URI
 
 Required OIDC settings:
@@ -174,10 +153,8 @@ Required OIDC settings:
 Internal services use service JWTs with issuer, audience, scope, and type validation.
 
 Examples:
-- `api` -> `borrower-service`
-- `api` -> `pricing-service` via job token
-- `pricing-service` -> `lead-service` via job token
-- `api` -> `notification-service` via job token
+- `harbor-api` → `pricing-service` via job token (sync HTTP)
+- `harbor-api` → `notification-service` via job token (RabbitMQ message header)
 
 ## Session Tracking And Deduplication
 The borrower-facing frontend generates and persists a session ID and sends it on quote requests with `X-Session-Id`.
@@ -214,29 +191,26 @@ The separate admin app at `/admin/` displays:
 Admin access requires an `ADMIN` role token.
 
 This endpoint aggregates:
-- quote metrics from `api`
-- borrower metrics from `borrower-service`
+- quote metrics from `harbor-api`
+- borrower metrics from `harbor-api`
 - pricing catalog metrics from `pricing-service`
-- lead metrics from `lead-service`
+- lead metrics from `harbor-api`
 
 ## Local Run Modes
 
-### Lightweight local stack
-Use this when you only need the borrower-facing app, auth, borrower APIs, MySQL, Redis, and edge routing.
-
+### Default stack (full 3-service RabbitMQ stack)
 ```bash
 docker compose up -d --build
 ```
 
-### Full integration demo stack
-Use this when you need async pricing, lead generation, notifications, admin-web, and LocalStack queues.
+Brings up: `rabbitmq`, `mysql`, `redis`, `api`, `pricing-service`, `notification-service`, `admin-web`, `web`, `edge`.
 
+To watch a message flow end to end, open the RabbitMQ management UI at **http://localhost:15672** (guest/guest) and observe queues `quote.notification.snapshot` and `rate-sheet.activated`.
+
+### Optional LocalStack/SQS profile (Phase-3 path)
 ```bash
 docker compose --env-file .env.integration --profile integration up -d --build
-```
-
-Or:
-```bash
+# or:
 make up
 ```
 
@@ -244,25 +218,53 @@ Stop the stack:
 
 ```bash
 docker compose --env-file .env.integration --profile integration down
-```
-
-Or:
-```bash
+# or:
 make down
 ```
 
-### Why the integration env file exists
-[.env.integration](./.env.integration) forces the async quote flow on for local demo and CI runs so `api` publishes pricing jobs consistently.
+The [`.env.integration`](./.env.integration) file switches the transport to SQS so `api` publishes pricing jobs to LocalStack queues for demos and CI.
+
+### Optional OIDC profile with Keycloak
+```bash
+APP_USER_TOKEN_PROVIDER=oidc \
+APP_USER_TOKEN_ISSUER=http://keycloak:8080/realms/mortgage-loan-api \
+APP_USER_TOKEN_AUDIENCE=mortgage-loan-api-web \
+APP_USER_TOKEN_JWK_SET_URI=http://keycloak:8080/realms/mortgage-loan-api/protocol/openid-connect/certs \
+docker compose --profile oidc up -d --build keycloak mysql redis rabbitmq api pricing-service notification-service web admin-web edge
+```
+
+Local Keycloak URLs:
+- issuer: `http://localhost:18080/realms/mortgage-loan-api`
+- admin console: `http://localhost:18080/admin`
+
+Imported demo credentials:
+- Keycloak console: `admin` / `admin`
+- admin user: `admin@example.com` / `StrongPass123!`
+- test user: `testuser` / `StrongPass123!`
+
+### Stop everything
+```bash
+docker compose down
+```
+
+### Local URLs
+- borrower app: `http://localhost:8088`
+- borrower app (TLS): `https://localhost:8443`
+- admin app (TLS): `https://localhost:8443/admin/`
+- health: `https://localhost:8443/actuator/health`
+- RabbitMQ management UI: `http://localhost:15672` (guest/guest)
+
+If local TLS certs are missing:
+```bash
+./scripts/generate-local-certs.sh
+```
 
 ## Testing
 
 ### Backend tests
 ```bash
 mvn -Dmaven.repo.local=.m2 test
-cd auth-service && mvn test
-cd borrower-service && mvn test
 cd pricing-service && mvn test
-cd lead-service && mvn test
 cd notification-service && mvn test
 ```
 
@@ -292,7 +294,7 @@ docker compose --env-file .env.integration --profile integration down
 ```
 
 ### Local smoke check
-Use the checked-in smoke runner after the integration stack is up:
+Use the checked-in smoke runner after the stack is up:
 
 ```bash
 ./scripts/local-smoke.sh
@@ -365,10 +367,16 @@ The default scaffold namespace was removed.
 
 ## Directory Structure
 
-### Root API
+### `api` (harbor-api)
 ```text
 src/main/java/com/jaycodesx/mortgage
 ├─ MortgageApplication.java
+├─ auth
+│  ├─ controller
+│  ├─ dto
+│  ├─ model
+│  ├─ repository
+│  └─ service
 ├─ borrower
 │  ├─ controller
 │  ├─ dto
@@ -402,36 +410,6 @@ src/main/java/com/jaycodesx/mortgage
    └─ service
 ```
 
-### `auth-service`
-```text
-auth-service/src/main/java/com/jaycodesx/mortgage
-├─ AuthServiceApplication.java
-├─ auth
-│  ├─ controller
-│  ├─ dto
-│  ├─ model
-│  ├─ repository
-│  └─ service
-└─ infrastructure
-   └─ security
-```
-
-### `borrower-service`
-```text
-borrower-service/src/main/java/com/jaycodesx/mortgage
-├─ BorrowerServiceApplication.java
-├─ borrower
-│  ├─ controller
-│  ├─ dto
-│  ├─ model
-│  ├─ repository
-│  └─ service
-└─ infrastructure
-   ├─ config
-   ├─ metrics
-   └─ security
-```
-
 ### `pricing-service`
 ```text
 pricing-service/src/main/java/com/jaycodesx/mortgage
@@ -441,10 +419,6 @@ pricing-service/src/main/java/com/jaycodesx/mortgage
 │  ├─ messaging
 │  ├─ metrics
 │  └─ security
-├─ lead
-│  ├─ model
-│  ├─ repository
-│  └─ service
 ├─ pricing
 │  ├─ model
 │  ├─ repository
@@ -456,23 +430,6 @@ pricing-service/src/main/java/com/jaycodesx/mortgage
 │  └─ service
 └─ shared
    └─ service
-```
-
-### `lead-service`
-```text
-lead-service/src/main/java/com/jaycodesx/mortgage
-├─ LeadServiceApplication.java
-├─ infrastructure
-│  ├─ messaging
-│  ├─ metrics
-│  └─ security
-├─ lead
-│  ├─ model
-│  ├─ repository
-│  └─ service
-└─ quote
-   ├─ model
-   └─ repository
 ```
 
 ### `notification-service`
@@ -542,53 +499,6 @@ admin-web
 - `GET /api/metrics/admin/summary`
 - `POST /api/metrics/quotes/sessions/authenticated`
 
-## Local Development
-
-### Start the full stack
-```bash
-docker compose up -d --build
-```
-
-### Start only what you need
-Example auth and quote verification stack:
-```bash
-docker compose up -d --build mysql redis localstack api auth-service borrower-service pricing-service lead-service notification-service web admin-web edge
-```
-
-### Start the optional OIDC profile with Keycloak
-```bash
-APP_USER_TOKEN_PROVIDER=oidc \
-APP_USER_TOKEN_ISSUER=http://keycloak:8080/realms/mortgage-loan-api \
-APP_USER_TOKEN_AUDIENCE=mortgage-loan-api-web \
-APP_USER_TOKEN_JWK_SET_URI=http://keycloak:8080/realms/mortgage-loan-api/protocol/openid-connect/certs \
-docker compose --profile oidc up -d --build keycloak mysql redis localstack api borrower-service web admin-web edge
-```
-
-Local Keycloak URLs:
-- issuer: `http://localhost:18080/realms/mortgage-loan-api`
-- admin console: `http://localhost:18080/admin`
-
-Imported demo credentials:
-- Keycloak console: `admin` / `admin`
-- admin user: `admin@example.com` / `StrongPass123!`
-- test user: `testuser` / `StrongPass123!`
-
-### Stop everything
-```bash
-docker compose down
-```
-
-### Local URLs
-- borrower app: `http://localhost:8088`
-- borrower app (TLS): `https://localhost:8443`
-- admin app (TLS): `https://localhost:8443/admin/`
-- health: `https://localhost:8443/actuator/health`
-
-If local TLS certs are missing:
-```bash
-./scripts/generate-local-certs.sh
-```
-
 ## Build And Test
 
 ### Backend tests
@@ -612,17 +522,17 @@ npm run build
 
 ## Operations And Replay
 
-Inspect DLQs:
+The `dlq-*.sh` scripts operate against the LocalStack SQS path (Phase-3 / `integration` profile). For the default RabbitMQ stack, use the management UI at **http://localhost:15672** or service logs to inspect message flow.
+
+Inspect SQS DLQs (LocalStack / Phase-3):
 ```bash
 ./scripts/dlq-inspect.sh quote-pricing-results-dlq
-./scripts/dlq-inspect.sh quote-lead-results-dlq
 ./scripts/dlq-inspect.sh quote-notification-events-dlq
 ```
 
 Replay DLQ messages:
 ```bash
 ./scripts/dlq-replay.sh quote-pricing-results-dlq quote-pricing-results
-./scripts/dlq-replay.sh quote-lead-results-dlq quote-lead-results
 ./scripts/dlq-replay.sh quote-notification-events-dlq quote-notification-events
 ```
 
