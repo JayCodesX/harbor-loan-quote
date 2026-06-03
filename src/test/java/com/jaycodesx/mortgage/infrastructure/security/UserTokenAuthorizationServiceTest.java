@@ -23,7 +23,8 @@ class UserTokenAuthorizationServiceTest {
             "test-user-token-secret-12345678901234567890",
             "auth-service",
             "mortgage-loan-api",
-            null
+            null,
+            900
     );
 
     private final UserTokenAuthorizationService service = new UserTokenAuthorizationService(properties);
@@ -59,7 +60,8 @@ class UserTokenAuthorizationServiceTest {
                 "unused-secret",
                 "http://localhost:18080/realms/mortgage-loan-api",
                 "mortgage-loan-api-web",
-                "http://localhost:18080/realms/mortgage-loan-api/protocol/openid-connect/certs"
+                "http://localhost:18080/realms/mortgage-loan-api/protocol/openid-connect/certs",
+                900
         );
         JwtDecoder decoder = mock(JwtDecoder.class);
         Jwt jwt = Jwt.withTokenValue("oidc-token")

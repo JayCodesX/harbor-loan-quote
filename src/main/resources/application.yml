@@ -24,14 +24,10 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   internal-admin:
-    borrower-base-url: ${APP_INTERNAL_ADMIN_BORROWER_BASE_URL:http://localhost:8087}
     pricing-base-url: ${APP_INTERNAL_ADMIN_PRICING_BASE_URL:http://localhost:8084}
-    lead-base-url: ${APP_INTERNAL_ADMIN_LEAD_BASE_URL:http://localhost:8085}
   messaging:
     enabled: ${APP_MESSAGING_ENABLED:false}
-    lead-result-queue-name: ${APP_LEAD_RESULT_QUEUE_NAME:quote-lead-results}
     notification-queue-name: ${APP_NOTIFICATION_QUEUE_NAME:quote-notification-events}
-    lead-result-dlq-name: ${APP_LEAD_RESULT_DLQ_NAME:quote-lead-results-dlq}
     notification-dlq-name: ${APP_NOTIFICATION_DLQ_NAME:quote-notification-events-dlq}
     endpoint: ${AWS_ENDPOINT:http://localhost:4566}
     region: ${AWS_REGION:us-east-1}
@@ -47,24 +43,16 @@ app:
     audience: ${APP_SERVICE_TOKEN_AUDIENCE:pricing-service}
     scope: ${APP_SERVICE_TOKEN_SCOPE:pricing:write}
     ttl-seconds: ${APP_SERVICE_TOKEN_TTL_SECONDS:300}
-  lead-result-token:
-    secret: ${APP_LEAD_RESULT_TOKEN_SECRET:dev-only-lead-result-secret-change-me-1234567890}
-    issuer: ${APP_LEAD_RESULT_TOKEN_ISSUER:lead-service}
-    audience: ${APP_LEAD_RESULT_TOKEN_AUDIENCE:mortgage-loan-api}
-    scope: ${APP_LEAD_RESULT_TOKEN_SCOPE:lead:write}
   notification-token:
     audience: ${APP_NOTIFICATION_TOKEN_AUDIENCE:notification-service}
     scope: ${APP_NOTIFICATION_TOKEN_SCOPE:notification:write}
-  borrower-service:
-    base-url: ${APP_BORROWER_SERVICE_BASE_URL:http://localhost:8087}
-    audience: ${APP_BORROWER_SERVICE_AUDIENCE:borrower-service}
-    scope: ${APP_BORROWER_SERVICE_SCOPE:borrower:read}
   user-token:
     provider: ${APP_USER_TOKEN_PROVIDER:internal}
     secret: ${APP_USER_TOKEN_SECRET:dev-only-user-token-secret-change-me-1234567890}
     issuer: ${APP_USER_TOKEN_ISSUER:auth-service}
     audience: ${APP_USER_TOKEN_AUDIENCE:mortgage-loan-api}
     jwk-set-uri: ${APP_USER_TOKEN_JWK_SET_URI:}
+    ttl-seconds: ${APP_USER_TOKEN_TTL_SECONDS:900}
 
 management:
   endpoint:

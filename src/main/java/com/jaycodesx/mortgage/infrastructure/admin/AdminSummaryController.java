@@ -1,7 +1,10 @@
 package com.jaycodesx.mortgage.infrastructure.admin;
 
+import com.jaycodesx.mortgage.borrower.metrics.BorrowerMetricsService;
+import com.jaycodesx.mortgage.infrastructure.metrics.AuthMetricsService;
 import com.jaycodesx.mortgage.infrastructure.metrics.QuoteMetricsService;
 import com.jaycodesx.mortgage.infrastructure.security.UserTokenAuthorizationService;
+import com.jaycodesx.mortgage.lead.metrics.LeadCatalogMetricsService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,16 +20,25 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminSummaryController {
 
     private final QuoteMetricsService quoteMetricsService;
+    private final AuthMetricsService authMetricsService;
+    private final BorrowerMetricsService borrowerMetricsService;
     private final AdminMetricsClientService adminMetricsClientService;
+    private final LeadCatalogMetricsService leadCatalogMetricsService;
     private final UserTokenAuthorizationService userTokenAuthorizationService;
 
     public AdminSummaryController(
             QuoteMetricsService quoteMetricsService,
+            AuthMetricsService authMetricsService,
+            BorrowerMetricsService borrowerMetricsService,
             AdminMetricsClientService adminMetricsClientService,
+            LeadCatalogMetricsService leadCatalogMetricsService,
             UserTokenAuthorizationService userTokenAuthorizationService
     ) {
         this.quoteMetricsService = quoteMetricsService;
+        this.authMetricsService = authMetricsService;
+        this.borrowerMetricsService = borrowerMetricsService;
         this.adminMetricsClientService = adminMetricsClientService;
+        this.leadCatalogMetricsService = leadCatalogMetricsService;
         this.userTokenAuthorizationService = userTokenAuthorizationService;
     }
 
@@ -38,10 +50,10 @@ public class AdminSummaryController {
             userTokenAuthorizationService.requireAdminUser(authorizationHeader);
             return Mono.fromCallable(() -> ResponseEntity.ok(new AdminSummaryResponseDto(
                             quoteMetricsService.getSnapshot(),
-                            adminMetricsClientService.fetchAuthMetrics(),
-                            adminMetricsClientService.fetchBorrowerMetrics(),
+                            authMetricsService.getSnapshot(),
+                            borrowerMetricsService.getSnapshot(),
                             adminMetricsClientService.fetchPricingMetrics(),
-                            adminMetricsClientService.fetchLeadMetrics(),
+                            leadCatalogMetricsService.getSnapshot(),
                             adminMetricsClientService.fetchNotificationMetrics()
                     )))
                     .subscribeOn(Schedulers.boundedElastic());

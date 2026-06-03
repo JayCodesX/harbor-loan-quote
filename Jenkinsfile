@@ -9,16 +9,7 @@ pipeline {
     stage('Backend Tests') {
       steps {
         sh 'mvn -Dmaven.repo.local=.m2 test'
-        dir('auth-service') {
-          sh 'mvn test'
-        }
-        dir('borrower-service') {
-          sh 'mvn test'
-        }
         dir('pricing-service') {
-          sh 'mvn test'
-        }
-        dir('lead-service') {
           sh 'mvn test'
         }
         dir('notification-service') {
