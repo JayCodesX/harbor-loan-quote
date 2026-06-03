@@ -2,6 +2,8 @@
 
 Operator-facing procedures for running, verifying, and recovering the Harbor Loan Quotes stack. For system design, see [architecture.md](./architecture.md).
 
+> **Status note.** The asynchronous messaging layer is currently **scaffolded but not wired** — the default transport is `noop`, so the async pricing/lead/notification pipeline does not run yet. The "async pipeline" and "dead-letter queue" sections below describe the **intended** operator workflow for the LocalStack-SQS path once a transport is enabled. The synchronous flows (quotes, calculators, auth, borrower APIs, metrics, admin) run today.
+
 ## Run modes
 
 **Lightweight local stack** — borrower app, auth, borrower APIs, MySQL, Redis, and edge routing:
@@ -57,7 +59,9 @@ Then run the smoke check (verifies borrower quote flow, auth redirect, admin log
 make smoke
 ```
 
-## Verifying the async pipeline
+## Verifying the async pipeline *(applies once a transport is enabled)*
+
+> Prerequisite: a real transport (`rabbitmq` or `sqs`) must be configured and consumers enabled. With the default `noop` transport this section does not apply.
 
 A healthy quote flows `QUEUED → PROCESSING → PRICED`. If a quote is stuck in `QUEUED`/`PROCESSING`:
 
@@ -72,7 +76,9 @@ A healthy quote flows `QUEUED → PROCESSING → PRICED`. If a quote is stuck in
    ```
 3. Inspect the relevant dead-letter queue (see below).
 
-## Dead-letter queues (DLQ)
+## Dead-letter queues (DLQ) *(LocalStack-SQS path, once enabled)*
+
+> The `dlq-*.sh` scripts operate against LocalStack SQS. They apply to the SQS transport path once the async layer is wired; they do not cover the RabbitMQ path.
 
 Poison messages — those that fail processing or carry an unsupported schema version — are routed to a DLQ.
 

@@ -3,18 +3,18 @@
 Mortgage quote and lead-generation platform with a borrower-facing React app, a separate admin app, an edge Nginx proxy, and Spring Boot microservices.
 
 ## Highlights
-- **Event-driven microservices** — 6 Spring Boot services, each owning its own domain and database schema (no cross-service table access).
-- **Async pricing & lead pipeline** over SQS with **versioned, idempotent message contracts**, dead-letter queues, and DLQ replay tooling.
-- **Real-time updates** to the borrower via Server-Sent Events backed by Redis snapshots.
+- **Microservices, domain-per-service** — 6 Spring Boot services, each owning its own domain and database schema (no cross-service table access).
+- **Synchronous quote platform** — public quotes, refinement, calculators, auth, borrower APIs, and aggregated metrics are implemented and run today.
+- **Broker-agnostic async design** — a transport abstraction with NoOp / RabbitMQ / SQS adapters and versioned, idempotent message contracts, so the broker is a config choice ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md), [ADR-0050](./docs/adr/phase-2-pricing-engine/0050-message-broker-selection.md)). *Scaffolded — not yet wired end to end (default transport `noop`).*
 - **Pluggable security** — self-issued HMAC JWTs or OIDC (Keycloak), plus service-to-service JWTs validated on issuer/audience/scope/type.
 - **Two React frontends** (borrower + admin), an Nginx TLS edge, and a full Docker Compose stack.
-- **Tested end to end** — JUnit across all services, frontend unit tests, and Playwright E2E in CI.
-- **Decision-driven** — every significant choice is recorded as an [ADR](./docs/adr).
+- **Tested** — JUnit across all services, frontend unit tests, and a Playwright E2E suite in CI.
+- **Decision-driven** — 50 [ADRs](./docs/adr) capture the design reasoning behind the system.
 
 ## Tech Stack
-**Backend:** Java 17, Spring Boot, MyBatis · **Data:** MySQL, Redis · **Messaging:** SQS (LocalStack) · **Auth:** JWT, OIDC/Keycloak · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Jenkins CI
+**Backend:** Java 17, Spring Boot, MyBatis · **Data:** MySQL, Redis · **Async (designed):** broker-agnostic transport — RabbitMQ / SQS (LocalStack) · **Auth:** JWT, OIDC/Keycloak · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Jenkins CI
 
-> Note: this is a personal portfolio project demonstrating backend and distributed-systems architecture. All credentials in the repo are clearly-labeled local-development placeholders.
+> Note: this is a personal portfolio project demonstrating backend and distributed-systems **architecture and design reasoning**. The synchronous services run; the asynchronous messaging layer is scaffolded but not yet wired (default transport `noop`). All credentials in the repo are clearly-labeled local-development placeholders.
 
 Additional docs:
 - [Architecture overview](./docs/architecture.md)
