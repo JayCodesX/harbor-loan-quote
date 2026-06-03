@@ -2,8 +2,22 @@
 
 Mortgage quote and lead-generation platform with a borrower-facing React app, a separate admin app, an edge Nginx proxy, and Spring Boot microservices.
 
+## Highlights
+- **Microservices, domain-per-service** — 6 Spring Boot services, each owning its own domain and database schema (no cross-service table access).
+- **Synchronous quote platform** — public quotes, refinement, calculators, auth, borrower APIs, and aggregated metrics are implemented and run today.
+- **Broker-agnostic async design** — a transport abstraction with NoOp / RabbitMQ / SQS adapters and versioned, idempotent message contracts, so the broker is a config choice ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md), [ADR-0050](./docs/adr/phase-2-pricing-engine/0050-message-broker-selection.md)). *Scaffolded — not yet wired end to end (default transport `noop`).*
+- **Pluggable security** — self-issued HMAC JWTs or OIDC (Keycloak), plus service-to-service JWTs validated on issuer/audience/scope/type.
+- **Two React frontends** (borrower + admin), an Nginx TLS edge, and a full Docker Compose stack.
+- **Tested** — JUnit across all services, frontend unit tests, and a Playwright E2E suite in CI.
+- **Decision-driven** — 50 [ADRs](./docs/adr) capture the design reasoning behind the system.
+
+## Tech Stack
+**Backend:** Java 17, Spring Boot, MyBatis · **Data:** MySQL, Redis · **Async (designed):** broker-agnostic transport — RabbitMQ / SQS (LocalStack) · **Auth:** JWT, OIDC/Keycloak · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Jenkins CI
+
+> Note: this is a personal portfolio project demonstrating backend and distributed-systems **architecture and design reasoning**. The synchronous services run; the asynchronous messaging layer is scaffolded but not yet wired (default transport `noop`). All credentials in the repo are clearly-labeled local-development placeholders.
+
 Additional docs:
-- [Architecture diagrams](./docs/architecture.md)
+- [Architecture overview](./docs/architecture.md)
 - [Operations runbook](./docs/ops-runbook.md)
 
 ## Runtime Overview
@@ -48,6 +62,9 @@ flowchart LR
 ```
 
 ## What The System Does
+
+> Steps 3–7 are the **designed async flow** and depend on the messaging layer, which is scaffolded but not yet wired (default transport `noop`). Steps 1–2 and 8 run today.
+
 1. Anonymous user requests a public mortgage quote.
 2. `api` deduplicates repeated requests per session and persists quote state.
 3. `api` publishes a pricing job to SQS.
@@ -116,8 +133,11 @@ Owns:
 
 Each service owns its own database schema — no cross-service table access.
 
-## Messaging Topology
-Queues created in LocalStack SQS:
+## Messaging Topology (target design — not yet wired)
+
+> **Status:** async messaging is built against a broker-agnostic transport abstraction ([ADR-0007](./docs/adr/phase-1-foundation/0007-messaging-transport-abstraction.md)) with NoOp / RabbitMQ / SQS adapters. The **default transport is `noop`**, so the async pipeline below does not run yet. RabbitMQ is the intended Phase-2 broker and SQS the Phase-3 target ([ADR-0050](./docs/adr/phase-2-pricing-engine/0050-message-broker-selection.md)). The topology below is the **designed** target; see [docs/architecture.md](./docs/architecture.md) for what currently runs.
+
+Designed queues (SQS naming; mirrored by RabbitMQ exchanges):
 - `quote-pricing-requests`
 - `quote-pricing-results`
 - `quote-lead-requests`
@@ -127,12 +147,12 @@ Queues created in LocalStack SQS:
 - `quote-lead-results-dlq`
 - `quote-notification-events-dlq`
 
-### Message contract hardening
-All asynchronous message payloads include:
+### Message contract hardening (designed)
+All asynchronous message payloads are designed to include:
 - `schemaVersion`
 - `messageId`
 
-Consumers:
+Consumers are designed to:
 - reject unsupported schema versions
 - dedupe deliveries on `messageId`
 - publish poison messages to DLQs when processing fails
