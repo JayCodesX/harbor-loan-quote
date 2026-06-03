@@ -3,7 +3,7 @@ package com.jaycodesx.mortgage.shared.service;
 import com.jaycodesx.mortgage.shared.dto.AmortizationResponseDto;
 import com.jaycodesx.mortgage.shared.dto.LoanCreateRequestDto;
 import com.jaycodesx.mortgage.shared.dto.MortgagePaymentResponseDto;
-import com.jaycodesx.mortgage.infrastructure.borrower.BorrowerLookupClientService;
+import com.jaycodesx.mortgage.borrower.service.BorrowerService;
 import com.jaycodesx.mortgage.shared.model.Loan;
 import com.jaycodesx.mortgage.shared.repository.LoanRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +27,7 @@ class LoanServiceTest {
     private LoanRepository loanRepository;
 
     @Mock
-    private BorrowerLookupClientService borrowerLookupClientService;
+    private BorrowerService borrowerService;
 
     private final MortgageMathService mortgageMathService = new MortgageMathService();
 
@@ -35,13 +35,13 @@ class LoanServiceTest {
 
     @BeforeEach
     void setUp() {
-        loanService = new LoanService(loanRepository, borrowerLookupClientService, mortgageMathService);
+        loanService = new LoanService(loanRepository, borrowerService, mortgageMathService);
     }
 
     @Test
     void createLoanSavesWhenBorrowerExists() {
         Loan saved = new Loan(5L, 2L, new BigDecimal("325000.00"), new BigDecimal("6.1000"), 30, "PENDING");
-        when(borrowerLookupClientService.borrowerExists(2L)).thenReturn(true);
+        when(borrowerService.borrowerExists(2L)).thenReturn(true);
         when(loanRepository.save(any(Loan.class))).thenReturn(saved);
 
         Loan result = loanService.createLoan(new LoanCreateRequestDto(
@@ -58,7 +58,7 @@ class LoanServiceTest {
 
     @Test
     void createLoanRejectsUnknownBorrower() {
-        when(borrowerLookupClientService.borrowerExists(99L)).thenReturn(false);
+        when(borrowerService.borrowerExists(99L)).thenReturn(false);
 
         assertThatThrownBy(() -> loanService.createLoan(new LoanCreateRequestDto(
                 99L,

@@ -5,7 +5,7 @@ import com.jaycodesx.mortgage.shared.dto.AmortizationEntryDto;
 import com.jaycodesx.mortgage.shared.dto.AmortizationResponseDto;
 import com.jaycodesx.mortgage.shared.dto.LoanCreateRequestDto;
 import com.jaycodesx.mortgage.shared.dto.MortgagePaymentResponseDto;
-import com.jaycodesx.mortgage.infrastructure.borrower.BorrowerLookupClientService;
+import com.jaycodesx.mortgage.borrower.service.BorrowerService;
 import com.jaycodesx.mortgage.shared.model.Loan;
 import com.jaycodesx.mortgage.shared.repository.LoanRepository;
 import org.springframework.stereotype.Service;
@@ -20,17 +20,17 @@ import java.util.Optional;
 public class LoanService {
 
     private final LoanRepository loanRepository;
-    private final BorrowerLookupClientService borrowerLookupClientService;
+    private final BorrowerService borrowerService;
     private final MortgageMathService mortgageMathService;
 
-    public LoanService(LoanRepository loanRepository, BorrowerLookupClientService borrowerLookupClientService, MortgageMathService mortgageMathService) {
+    public LoanService(LoanRepository loanRepository, BorrowerService borrowerService, MortgageMathService mortgageMathService) {
         this.loanRepository = loanRepository;
-        this.borrowerLookupClientService = borrowerLookupClientService;
+        this.borrowerService = borrowerService;
         this.mortgageMathService = mortgageMathService;
     }
 
     public Loan createLoan(LoanCreateRequestDto request) {
-        if (!borrowerLookupClientService.borrowerExists(request.borrowerId())) {
+        if (!borrowerService.borrowerExists(request.borrowerId())) {
             throw new IllegalArgumentException("Borrower not found for id: " + request.borrowerId());
         }
 
