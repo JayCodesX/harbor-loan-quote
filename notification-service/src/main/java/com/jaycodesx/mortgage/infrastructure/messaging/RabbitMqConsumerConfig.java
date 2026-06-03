@@ -31,6 +31,10 @@ public class RabbitMqConsumerConfig {
     public static final String RATE_SHEET_ACTIVATED_QUEUE = "rate-sheet.activated";
     public static final String RATE_SHEET_ACTIVATED_ROUTING_KEY = "RATE_SHEET_ACTIVATED";
 
+    public static final String QUOTE_NOTIFICATION_EXCHANGE = "quote.notification.events";
+    public static final String QUOTE_NOTIFICATION_QUEUE = "quote.notification.snapshot";
+    public static final String QUOTE_NOTIFICATION_ROUTING_KEY = "QUOTE_NOTIFICATION_SNAPSHOT";
+
     @Bean
     TopicExchange rateSheetEventsExchange() {
         return new TopicExchange(RATE_SHEET_EXCHANGE, true, false);
@@ -46,6 +50,24 @@ public class RabbitMqConsumerConfig {
         return BindingBuilder.bind(rateSheetActivatedQueue)
                 .to(rateSheetEventsExchange)
                 .with(RATE_SHEET_ACTIVATED_ROUTING_KEY);
+    }
+
+    @Bean
+    TopicExchange quoteNotificationEventsExchange() {
+        return new TopicExchange(QUOTE_NOTIFICATION_EXCHANGE, true, false);
+    }
+
+    @Bean
+    Queue quoteNotificationSnapshotQueue() {
+        return new Queue(QUOTE_NOTIFICATION_QUEUE, true);
+    }
+
+    @Bean
+    Binding quoteNotificationSnapshotBinding(Queue quoteNotificationSnapshotQueue,
+                                             TopicExchange quoteNotificationEventsExchange) {
+        return BindingBuilder.bind(quoteNotificationSnapshotQueue)
+                .to(quoteNotificationEventsExchange)
+                .with(QUOTE_NOTIFICATION_ROUTING_KEY);
     }
 
     /**
