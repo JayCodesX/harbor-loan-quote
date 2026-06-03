@@ -2,8 +2,22 @@
 
 Mortgage quote and lead-generation platform with a borrower-facing React app, a separate admin app, an edge Nginx proxy, and Spring Boot microservices.
 
+## Highlights
+- **Event-driven microservices** — 6 Spring Boot services, each owning its own domain and database schema (no cross-service table access).
+- **Async pricing & lead pipeline** over SQS with **versioned, idempotent message contracts**, dead-letter queues, and DLQ replay tooling.
+- **Real-time updates** to the borrower via Server-Sent Events backed by Redis snapshots.
+- **Pluggable security** — self-issued HMAC JWTs or OIDC (Keycloak), plus service-to-service JWTs validated on issuer/audience/scope/type.
+- **Two React frontends** (borrower + admin), an Nginx TLS edge, and a full Docker Compose stack.
+- **Tested end to end** — JUnit across all services, frontend unit tests, and Playwright E2E in CI.
+- **Decision-driven** — every significant choice is recorded as an [ADR](./docs/adr).
+
+## Tech Stack
+**Backend:** Java 17, Spring Boot, MyBatis · **Data:** MySQL, Redis · **Messaging:** SQS (LocalStack) · **Auth:** JWT, OIDC/Keycloak · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Jenkins CI
+
+> Note: this is a personal portfolio project demonstrating backend and distributed-systems architecture. All credentials in the repo are clearly-labeled local-development placeholders.
+
 Additional docs:
-- [Architecture diagrams](./docs/architecture.md)
+- [Architecture overview](./docs/architecture.md)
 - [Operations runbook](./docs/ops-runbook.md)
 
 ## Runtime Overview
