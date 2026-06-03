@@ -46,6 +46,7 @@ services:
       APP_USER_TOKEN_ISSUER: harbor-api
       APP_USER_TOKEN_AUDIENCE: mortgage-loan-api
       APP_USER_TOKEN_JWK_SET_URI: ${APP_USER_TOKEN_JWK_SET_URI:-}
+      APP_PRICING_SERVICE_BASE_URL: http://pricing-service:8084
       APP_INTERNAL_ADMIN_PRICING_BASE_URL: http://pricing-service:8084
       APP_INTERNAL_ADMIN_PRICING_SECRET: ${APP_SERVICE_TOKEN_SECRET:-local-dev-only-secret-1234567890abcdef}
       APP_INTERNAL_ADMIN_PRICING_AUDIENCE: pricing-service
@@ -60,6 +61,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      pricing-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
