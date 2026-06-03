@@ -1,5 +1,6 @@
 package com.jaycodesx.mortgage.consent.service;
 
+import com.jaycodesx.mortgage.consent.dto.AuthConsentRequestDto;
 import com.jaycodesx.mortgage.consent.model.ConsentAuditLog;
 import com.jaycodesx.mortgage.consent.repository.ConsentAuditLogRepository;
 import com.jaycodesx.mortgage.quote.dto.QuoteRefinementRequestDto;
@@ -57,6 +58,26 @@ public class ConsentAuditLogService {
         record(loanQuoteId, borrowerQuoteProfileId, "LEAD_SHARE",
                 Boolean.TRUE.equals(request.leadShareConsent()) ? "GRANTED" : "REVOKED",
                 lang, ip, userAgent);
+    }
+
+    /**
+     * Records consent captured at an authentication surface (sign-in / registration). There is
+     * no loan quote at this point, so a sentinel id of 0 is used for the quote/profile columns
+     * (which are non-nullable on the audit model). One entry is written per consent type.
+     */
+    public void recordAuthConsents(AuthConsentRequestDto request, String ipAddress, String userAgent) {
+        String ip = ipAddress != null && !ipAddress.isBlank() ? ipAddress : "unknown";
+        String surface = request.sourceSurface() != null ? request.sourceSurface() : "auth";
+
+        record(0L, 0L, "TERMS_OF_SERVICE",
+                Boolean.TRUE.equals(request.termsOfService()) ? "GRANTED" : "REVOKED",
+                surface, ip, userAgent);
+        record(0L, 0L, "PRIVACY_NOTICE",
+                Boolean.TRUE.equals(request.privacyNotice()) ? "GRANTED" : "REVOKED",
+                surface, ip, userAgent);
+        record(0L, 0L, "MARKETING_EMAIL",
+                Boolean.TRUE.equals(request.marketingEmail()) ? "GRANTED" : "REVOKED",
+                surface, ip, userAgent);
     }
 
     /**

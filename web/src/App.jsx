@@ -527,6 +527,12 @@ const saveAuthState = (nextAuthState) => {
     cashReserves: Number(refineForm.cashReserves),
     firstTimeBuyer: refineForm.firstTimeBuyer === 'true',
     vaEligible: refineForm.vaEligible === 'true',
+    // Consent captured at lead submission (TCPA) — required by the refine API.
+    tcpaConsent: refineForm.tcpaConsent !== 'false',
+    leadShareConsent: refineForm.leadShareConsent !== 'false',
+    emailOptIn: refineForm.emailOptIn === 'true',
+    consentLanguage:
+      'By submitting, I agree to be contacted about my quote (including TCPA consent) and to share my details with matched lenders and agents.',
   })
 
   const handleRefineProgressSave = async () => {
