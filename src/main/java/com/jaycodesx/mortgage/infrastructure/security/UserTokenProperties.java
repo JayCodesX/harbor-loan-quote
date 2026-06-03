@@ -8,6 +8,7 @@ public record UserTokenProperties(
         String secret,
         String issuer,
         String audience,
-        String jwkSetUri
+        String jwkSetUri,
+        long ttlSeconds
 ) {
 }

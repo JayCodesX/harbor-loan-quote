@@ -65,6 +65,18 @@ public class QuoteMetricsService {
         increment(AUTH_LOGINS_KEY);
     }
 
+    public void recordLeadCreated(Long quoteId) {
+        increment(LEADS_CREATED_KEY);
+        String startValue = redisTemplate.opsForValue().get(leadStartKey(quoteId));
+        if (startValue == null) {
+            return;
+        }
+        long duration = Math.max(0L, System.currentTimeMillis() - Long.parseLong(startValue));
+        redisTemplate.opsForValue().increment(LEAD_DURATION_SUM_KEY, duration);
+        redisTemplate.opsForValue().increment(LEAD_DURATION_COUNT_KEY);
+        redisTemplate.delete(leadStartKey(quoteId));
+    }
+
     public void recordLeadCaptured(String sessionId) {
         addToSet(LEAD_SESSIONS_KEY, sessionId);
     }

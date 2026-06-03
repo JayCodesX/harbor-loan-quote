@@ -16,6 +16,7 @@ import com.jaycodesx.mortgage.quote.model.LoanQuote;
 import com.jaycodesx.mortgage.quote.repository.BorrowerQuoteProfileRepository;
 import com.jaycodesx.mortgage.quote.repository.LoanQuoteRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -124,6 +125,7 @@ public class LoanQuoteService {
         return refineQuote(id, null, request);
     }
 
+    @Transactional
     public LoanQuoteResponseDto refineLatestQuote(String sessionId, String userId, QuoteRefinementRequestDto request) {
         LoanQuote quote = (userId != null
                 ? loanQuoteRepository.findTopByUserIdOrderByUpdatedAtDesc(userId)
@@ -162,15 +164,21 @@ public class LoanQuoteService {
         return getQuotesByUserId(userId);
     }
 
+    @Transactional
     public LoanQuoteResponseDto refineQuote(Long id, String sessionId, QuoteRefinementRequestDto request) {
         return refineQuote(id, sessionId, null, request, null, null);
     }
 
+    // TODO: the pricing-service HTTP call currently runs inside this transaction — for production,
+    // move the HTTP call outside the transaction boundary to avoid holding a DB connection across a
+    // network round-trip. Consider splitting into pre-tx flush, external call, then new tx for write-back.
+    @Transactional
     public LoanQuoteResponseDto refineQuote(Long id, String sessionId, QuoteRefinementRequestDto request,
                                              String ipAddress, String userAgent) {
         return refineQuote(id, sessionId, null, request, ipAddress, userAgent);
     }
 
+    @Transactional
     public LoanQuoteResponseDto refineQuote(Long id, String sessionId, String userId, QuoteRefinementRequestDto request) {
         return refineQuote(id, sessionId, userId, request, null, null);
     }
@@ -204,6 +212,11 @@ public class LoanQuoteService {
         consentAuditLogService.recordConsentAtLeadSubmission(savedQuote.getId(), savedProfile.getId(), request, ipAddress, userAgent);
         quoteMetricsService.recordQuoteRefinementRequested(savedQuote.getId(), resolvedSessionId);
 
+        // Pricing HTTP call is intentionally outside the transaction body — flush and clear the
+        // connection before the network round-trip so we don't hold a DB connection across it.
+        // The transactional lead+status update below opens a new connection after the call returns.
+        loanQuoteRepository.flush();
+
         QuoteCalculationResponseDto result = pricingServiceClient.calculate(new QuoteCalculationRequestDto(
                 "REFINED_QUOTE",
                 savedQuote.getId(),
@@ -224,23 +237,19 @@ public class LoanQuoteService {
         applyPricingResult(savedQuote, result);
 
         MortgageLead lead = upsertLead(savedQuote.getId(), savedProfile.getId());
+        quoteMetricsService.recordLeadCreated(savedQuote.getId());
+
+        // Inline: mark lead captured on the quote in the same transaction
+        savedQuote.setLeadCaptured(true);
+        savedQuote.setQuoteStatus("LEAD_CAPTURED");
+        loanQuoteRepository.save(savedQuote);
         quoteSessionService.rememberQuote(fingerprint, savedQuote.getId(), savedQuote.getProcessingStatus());
         quoteMetricsService.recordLeadCaptured(resolvedSessionId);
+        quoteSessionService.cacheQuoteStatus(savedQuote.getId(), savedQuote.getProcessingStatus());
 
         LoanQuoteResponseDto response = toResponse(savedQuote, Optional.of(savedProfile), Optional.of(lead), false, resolvedSessionId);
         quoteNotificationPublisher.publish(QuoteNotificationMessage.fromResponse(response));
         return response;
-    }
-
-    public void applyLeadResult(LeadResultMessage message) {
-        LoanQuote quote = loanQuoteRepository.findById(message.loanQuoteId())
-                .orElseThrow(() -> new IllegalArgumentException("Quote not found for id: " + message.loanQuoteId()));
-        quote.setLeadCaptured(true);
-        quote.setQuoteStatus("LEAD_CAPTURED");
-        loanQuoteRepository.save(quote);
-        quoteMetricsService.recordLeadCaptured(quote.getSessionId());
-        quoteSessionService.cacheQuoteStatus(quote.getId(), quote.getProcessingStatus());
-        publishNotificationSnapshot(quote);
     }
 
     private void applyPricingResult(LoanQuote quote, QuoteCalculationResponseDto result) {

@@ -179,7 +179,9 @@ class LoanQuoteServiceTest {
         LoanQuoteResponseDto response = loanQuoteService.refineQuote(5L, "session-5", request);
 
         assertThat(response.processingStatus()).isEqualTo("COMPLETED");
-        assertThat(response.quoteStatus()).isEqualTo("LEAD_READY");
+        // Lead capture now happens inline in harbor-api; the service overwrites the pricing-service
+        // quoteStatus with "LEAD_CAPTURED" as the definitive terminal status for this flow.
+        assertThat(response.quoteStatus()).isEqualTo("LEAD_CAPTURED");
         assertThat(response.borrowerProfileCaptured()).isTrue();
         verify(pricingServiceClient).calculate(any(QuoteCalculationRequestDto.class));
         verify(quoteMetricsService).recordQuoteRefinementRequested(5L, "session-5");

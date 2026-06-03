@@ -20,11 +20,8 @@ app:
     audience: pricing-service
     scope: pricing:write
     ttl-seconds: 300
-  borrower-service:
-    base-url: http://localhost:8087
-    audience: borrower-service
-    scope: borrower:read
   user-token:
     secret: test-user-token-secret-12345678901234567890
     issuer: auth-service
     audience: mortgage-loan-api
+    ttl-seconds: 900

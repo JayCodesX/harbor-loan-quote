@@ -25,28 +25,12 @@ public class AdminMetricsClientService {
         this.serviceTokenService = serviceTokenService;
     }
 
-    public BorrowerMetricsResponseDto fetchBorrowerMetrics() {
-        return get(properties.borrowerBaseUrl(), properties.borrowerAudience(), properties.borrowerScope(), BorrowerMetricsResponseDto.class);
-    }
-
     public PricingMetricsResponseDto fetchPricingMetrics() {
         return get(properties.pricingBaseUrl(), properties.pricingAudience(), properties.pricingScope(), PricingMetricsResponseDto.class);
     }
 
-    public LeadMetricsResponseDto fetchLeadMetrics() {
-        return get(properties.leadBaseUrl(), properties.leadAudience(), properties.leadScope(), LeadMetricsResponseDto.class);
-    }
-
-    public AuthMetricsResponseDto fetchAuthMetrics() {
-        return get(properties.authBaseUrl(), properties.authAudience(), properties.authScope(), AuthMetricsResponseDto.class);
-    }
-
     public NotificationMetricsResponseDto fetchNotificationMetrics() {
         return get(properties.notificationBaseUrl(), properties.notificationAudience(), properties.notificationScope(), NotificationMetricsResponseDto.class);
-    }
-
-    public List<BorrowerAdminResponseDto> fetchBorrowers() {
-        return getList(properties.borrowerBaseUrl(), properties.borrowerAudience(), properties.borrowerScope(), "/internal/admin/borrowers");
     }
 
     public List<AdminPricingProductResponseDto> fetchProducts() {

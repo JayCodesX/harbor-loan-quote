@@ -1,5 +1,6 @@
 package com.jaycodesx.mortgage.infrastructure.admin;
 
+import com.jaycodesx.mortgage.borrower.service.BorrowerService;
 import com.jaycodesx.mortgage.quote.model.LoanQuote;
 import com.jaycodesx.mortgage.quote.repository.LoanQuoteRepository;
 import com.jaycodesx.mortgage.shared.model.Loan;
@@ -18,15 +19,18 @@ public class AdminReportService {
     private final LoanRepository loanRepository;
     private final LoanQuoteRepository loanQuoteRepository;
     private final AdminMetricsClientService adminMetricsClientService;
+    private final BorrowerService borrowerService;
 
     public AdminReportService(
             LoanRepository loanRepository,
             LoanQuoteRepository loanQuoteRepository,
-            AdminMetricsClientService adminMetricsClientService
+            AdminMetricsClientService adminMetricsClientService,
+            BorrowerService borrowerService
     ) {
         this.loanRepository = loanRepository;
         this.loanQuoteRepository = loanQuoteRepository;
         this.adminMetricsClientService = adminMetricsClientService;
+        this.borrowerService = borrowerService;
     }
 
     public AdminReportResponseDto runReport(AdminReportQueryDto query) {
@@ -62,7 +66,8 @@ public class AdminReportService {
         Predicate<BorrowerAdminResponseDto> filter = borrower -> matchesSearch(query.search(), borrower.firstName(), borrower.lastName(), borrower.email())
                 && matchesCreditScore(query.minCreditScore(), query.maxCreditScore(), borrower.creditScore());
 
-        List<Map<String, Object>> rows = adminMetricsClientService.fetchBorrowers().stream()
+        List<Map<String, Object>> rows = borrowerService.findAll().stream()
+                .map(b -> new BorrowerAdminResponseDto(b.getId(), b.getFirstName(), b.getLastName(), b.getEmail(), b.getCreditScore()))
                 .filter(filter)
                 .map(borrower -> Map.<String, Object>of(
                         "id", borrower.id(),
