@@ -251,10 +251,11 @@ const saveAuthState = (nextAuthState) => {
         throw new Error(errorBody || 'Unable to complete this request.')
       }
 
-      if (response.status === 204) {
+      if (response.status === 204 || response.status === 202) {
         return null
       }
-      return await response.json()
+      const responseBody = await response.text()
+      return responseBody ? JSON.parse(responseBody) : null
     } catch (error) {
       setErrorMessage(error.message || 'Something went wrong while calling the API.')
       return null
@@ -301,10 +302,11 @@ const saveAuthState = (nextAuthState) => {
         throw new Error(errorBody || 'Unable to complete this request.')
       }
 
-      if (response.status === 204) {
+      if (response.status === 204 || response.status === 202) {
         return null
       }
-      return await response.json()
+      const responseBody = await response.text()
+      return responseBody ? JSON.parse(responseBody) : null
     } catch (error) {
       setErrorMessage(error.message || 'Something went wrong while calling the API.')
       return null
