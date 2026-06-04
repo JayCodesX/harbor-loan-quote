@@ -25,7 +25,7 @@ app:
     region: ${AWS_REGION:us-east-1}
     poll-delay-ms: ${APP_MESSAGING_POLL_DELAY_MS:3000}
   service-token:
-    public-key: ${APP_SERVICE_TOKEN_PUBLIC_KEY:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApSeG/JJIj4r/5XeZhatc1ddBqedj5gbhIh4WzuZ5euRbGyqK0X2gHOhHBrvKOWLnJ/sMfRaeuKItCF5j6TIjOxTkOXgbiim8EppQVac25BNMaqrDvAK/0sPpXphba8Q2VW0AACoT2XsG70AgIzWFIWcAAvgQHaa8kz9Baneto2BOSOz6vByRzlAxikFzR9CTN02O4JeaOdvDPNjxyLaxiRMD+YW1HxLEPIR0Bt3dl5kNxyVMu31xq7Mmdcqpu2BbrKbDDzBkMPSBpW2l+3SsqFzk1z4cwuOS0ZpzyMDoA1ca7t5F2BzOpcT2rVZoAZeDyXeZ0UmeGAhDyzdEqlTwhQIDAQAB}
+    public-key: ${APP_SERVICE_TOKEN_PUBLIC_KEY:}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}
     audience: ${APP_SERVICE_TOKEN_AUDIENCE:notification-service}
     scope: ${APP_SERVICE_TOKEN_SCOPE:notification:write}
