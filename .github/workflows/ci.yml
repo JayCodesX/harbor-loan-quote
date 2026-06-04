@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: harbor-api, dir: "." }
+          - { name: pricing-service, dir: pricing-service }
+          - { name: notification-service, dir: notification-service }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Run tests
+        working-directory: ${{ matrix.dir }}
+        # Testcontainers-backed tests use the Docker daemon available on the runner.
+        run: mvn -B -ntp test
+
+  frontend:
+    name: Frontend (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [ web, admin-web ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - name: Install
+        working-directory: ${{ matrix.app }}
+        run: npm ci
+      - name: Unit tests
+        working-directory: ${{ matrix.app }}
+        run: npm run test:ci
+      - name: Production build
+        working-directory: ${{ matrix.app }}
+        run: npm run build
