@@ -772,6 +772,23 @@ const saveAuthState = (nextAuthState) => {
     }))
   }, [quoteResult?.id])
 
+  // Prefill what we can into the refine wizard so a returning borrower isn't forced to
+  // retype everything. The refine API requires email/firstName/lastName/phone + creditScore,
+  // but there is no profile endpoint to recover them from — email comes from the signed-in
+  // account and address from the active quote. Only empty fields are filled, so this never
+  // clobbers anything the user has typed.
+  useEffect(() => {
+    if (!authState?.email && !quoteResult) {
+      return
+    }
+    setRefineForm((current) => ({
+      ...current,
+      email: current.email || authState?.email || '',
+      stateCode: current.stateCode || quoteResult?.stateCode || '',
+      countyName: current.countyName || quoteResult?.countyName || '',
+    }))
+  }, [authState?.email, quoteResult?.id])
+
   useEffect(() => {
     if (!authState?.accessToken) {
       return

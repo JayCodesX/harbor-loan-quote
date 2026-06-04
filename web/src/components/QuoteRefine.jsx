@@ -24,7 +24,44 @@ export default function QuoteRefine({
   const selectedState = locationOptions?.find((loc) => loc.stateCode === refineForm?.stateCode)
   const counties = selectedState?.counties || []
 
+  // Mirror the backend's @NotBlank / @Min(300) rules so we never fire a request that the
+  // API will reject — and tell the borrower exactly what's missing instead of dumping a 400.
+  const validateStep = (step) => {
+    if (step === 1) {
+      const missing = [
+        ['firstName', 'First name'],
+        ['lastName', 'Last name'],
+        ['email', 'Email'],
+        ['phone', 'Phone'],
+      ].filter(([key]) => !String(refineForm?.[key] || '').trim()).map(([, label]) => label)
+      if (missing.length) return `Please fill in: ${missing.join(', ')}.`
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(refineForm.email).trim())) {
+        return 'Please enter a valid email address.'
+      }
+      if (!(Number(refineForm?.annualIncome) > 0)) {
+        return 'Please enter your annual income (greater than 0).'
+      }
+    }
+    if (step === 2) {
+      const score = Number(refineForm?.creditScore)
+      if (!score || score < 300 || score > 850) {
+        return 'Please enter a credit score between 300 and 850.'
+      }
+    }
+    if (step === 3) {
+      if (!refineForm?.stateCode) return 'Please select a state.'
+      if (!refineForm?.countyName) return 'Please select a county.'
+    }
+    return ''
+  }
+
   const handleNext = async () => {
+    const error = validateStep(currentStep)
+    if (error) {
+      setSubmitError(error)
+      return
+    }
+    setSubmitError('')
     await handleRefineProgressSave?.()
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
@@ -39,6 +76,16 @@ export default function QuoteRefine({
 
   const handleFinalSubmit = (e) => {
     e.preventDefault()
+    // Re-check every step so a borrower who jumped straight to "Submit" (e.g. after a
+    // refresh reset the form) is sent back to the first incomplete step with a clear message.
+    for (const step of [1, 2, 3]) {
+      const error = validateStep(step)
+      if (error) {
+        setSubmitError(error)
+        setCurrentStep(step)
+        return
+      }
+    }
     setSubmitError('')
     handleRefineQuoteSubmit?.(e)
   }
