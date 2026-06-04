@@ -2,25 +2,39 @@ package com.jaycodesx.mortgage.infrastructure.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 @Service
 @EnableConfigurationProperties(ServiceTokenProperties.class)
 public class ServiceTokenValidator {
 
     private final ServiceTokenProperties properties;
+    private final RSAPublicKey verifyingKey;
 
     public ServiceTokenValidator(ServiceTokenProperties properties) {
         this.properties = properties;
+        this.verifyingKey = loadPublicKey(properties.publicKey());
+    }
+
+    private RSAPublicKey loadPublicKey(String base64) {
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(base64);
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+            return (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(spec);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to load RSA public key for service token validation", e);
+        }
     }
 
     public void validateNotificationToken(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8)))
+                .verifyWith(verifyingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

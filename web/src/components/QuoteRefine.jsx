@@ -24,8 +24,49 @@ export default function QuoteRefine({
   const selectedState = locationOptions?.find((loc) => loc.stateCode === refineForm?.stateCode)
   const counties = selectedState?.counties || []
 
+  // Mirror the backend's @NotBlank / @Min(300) rules so we never fire a request that the
+  // API will reject — and tell the borrower exactly what's missing instead of dumping a 400.
+  const validateStep = (step) => {
+    if (step === 1) {
+      const missing = [
+        ['firstName', 'First name'],
+        ['lastName', 'Last name'],
+        ['email', 'Email'],
+        ['phone', 'Phone'],
+      ].filter(([key]) => !String(refineForm?.[key] || '').trim()).map(([, label]) => label)
+      if (missing.length) return `Please fill in: ${missing.join(', ')}.`
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(refineForm.email).trim())) {
+        return 'Please enter a valid email address.'
+      }
+      if (!(Number(refineForm?.annualIncome) > 0)) {
+        return 'Please enter your annual income (greater than 0).'
+      }
+    }
+    if (step === 2) {
+      const score = Number(refineForm?.creditScore)
+      if (!score || score < 300 || score > 850) {
+        return 'Please enter a credit score between 300 and 850.'
+      }
+    }
+    if (step === 3) {
+      if (!refineForm?.stateCode) return 'Please select a state.'
+      if (!refineForm?.countyName) return 'Please select a county.'
+    }
+    return ''
+  }
+
   const handleNext = async () => {
-    await handleRefineProgressSave?.()
+    const error = validateStep(currentStep)
+    if (error) {
+      setSubmitError(error)
+      return
+    }
+    setSubmitError('')
+    // The refine API rejects any partial payload, so only persist progress once the fields it
+    // validates (steps 1 & 2) are complete — avoids firing requests the backend will 400.
+    if (!validateStep(1) && !validateStep(2)) {
+      await handleRefineProgressSave?.()
+    }
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
     }
@@ -39,6 +80,16 @@ export default function QuoteRefine({
 
   const handleFinalSubmit = (e) => {
     e.preventDefault()
+    // Re-check every step so a borrower who jumped straight to "Submit" (e.g. after a
+    // refresh reset the form) is sent back to the first incomplete step with a clear message.
+    for (const step of [1, 2, 3]) {
+      const error = validateStep(step)
+      if (error) {
+        setSubmitError(error)
+        setCurrentStep(step)
+        return
+      }
+    }
     setSubmitError('')
     handleRefineQuoteSubmit?.(e)
   }
@@ -71,6 +122,22 @@ export default function QuoteRefine({
                 <>
                   <h2>Step 1: Borrower profile</h2>
                   <div className="borrower-v3-stepper-fields">
+                    <article className="v3-landing-field">
+                      <label htmlFor="firstName">First name</label>
+                      <input id="firstName" type="text" name="firstName" value={refineForm?.firstName || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="First name" />
+                    </article>
+                    <article className="v3-landing-field">
+                      <label htmlFor="lastName">Last name</label>
+                      <input id="lastName" type="text" name="lastName" value={refineForm?.lastName || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="Last name" />
+                    </article>
+                    <article className="v3-landing-field">
+                      <label htmlFor="email">Email</label>
+                      <input id="email" type="email" name="email" value={refineForm?.email || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="you@example.com" />
+                    </article>
+                    <article className="v3-landing-field">
+                      <label htmlFor="phone">Phone</label>
+                      <input id="phone" type="tel" name="phone" value={refineForm?.phone || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="(555) 555-5555" />
+                    </article>
                     <article className="v3-landing-field">
                       <label htmlFor="annualIncome">Annual income</label>
                       <input id="annualIncome" type="number" name="annualIncome" value={refineForm?.annualIncome || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />

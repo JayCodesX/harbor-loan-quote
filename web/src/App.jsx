@@ -56,7 +56,6 @@ function App() {
     borrowerCurrentQuote: `${API_BASE_URL}/borrower/quotes/current`,
     borrowerRefineLatest: `${API_BASE_URL}/borrower/quotes/refine-latest`,
     borrowerAttachSession: `${API_BASE_URL}/borrower/quotes/attach-session`,
-    borrowerProfile: `${API_BASE_URL}/borrower/profile`,
     quoteEventsBase: `${API_BASE_URL}/notifications/quotes`,
     authSessionMetric: `${API_BASE_URL}/metrics/quotes/sessions/authenticated`,
     subscriptions: `${API_BASE_URL}/subscriptions`,
@@ -251,10 +250,11 @@ const saveAuthState = (nextAuthState) => {
         throw new Error(errorBody || 'Unable to complete this request.')
       }
 
-      if (response.status === 204) {
+      if (response.status === 204 || response.status === 202) {
         return null
       }
-      return await response.json()
+      const responseBody = await response.text()
+      return responseBody ? JSON.parse(responseBody) : null
     } catch (error) {
       setErrorMessage(error.message || 'Something went wrong while calling the API.')
       return null
@@ -301,10 +301,11 @@ const saveAuthState = (nextAuthState) => {
         throw new Error(errorBody || 'Unable to complete this request.')
       }
 
-      if (response.status === 204) {
+      if (response.status === 204 || response.status === 202) {
         return null
       }
-      return await response.json()
+      const responseBody = await response.text()
+      return responseBody ? JSON.parse(responseBody) : null
     } catch (error) {
       setErrorMessage(error.message || 'Something went wrong while calling the API.')
       return null
@@ -330,20 +331,16 @@ const saveAuthState = (nextAuthState) => {
 
   const hydrateBorrowerContext = async (accessToken = authState?.accessToken) => {
     if (!accessToken) {
-      return { currentQuote: null, borrowerProfile: null }
+      return { currentQuote: null }
     }
 
-    const [currentQuote, borrowerProfile, borrowerQuotes] = await Promise.all([
+    const [currentQuote, borrowerQuotes] = await Promise.all([
       callApiOptional('borrower-current-quote', endpoints.borrowerCurrentQuote, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'X-Session-Id': sessionId,
         },
-      }),
-      callApiOptional('borrower-profile', endpoints.borrowerProfile, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${accessToken}` },
       }),
       callApiOptional('borrower-quote-history', endpoints.borrowerQuotes, {
         method: 'GET',
@@ -358,28 +355,9 @@ const saveAuthState = (nextAuthState) => {
       setQuoteResult(currentQuote)
     }
 
-    if (borrowerProfile) {
-      setRefineForm((current) => ({
-        ...current,
-        firstName: borrowerProfile.firstName ?? current.firstName,
-        lastName: borrowerProfile.lastName ?? current.lastName,
-        email: borrowerProfile.email ?? borrowerProfile.accountEmail ?? current.email,
-        phone: borrowerProfile.phone ?? current.phone,
-        stateCode: borrowerProfile.stateCode ?? current.stateCode,
-        countyName: borrowerProfile.countyName ?? current.countyName,
-        annualIncome: borrowerProfile.annualIncome != null ? String(borrowerProfile.annualIncome) : current.annualIncome,
-        monthlyDebts: borrowerProfile.monthlyDebts != null ? String(borrowerProfile.monthlyDebts) : current.monthlyDebts,
-        creditScore: borrowerProfile.creditScore != null ? String(borrowerProfile.creditScore) : current.creditScore,
-        cashReserves: borrowerProfile.cashReserves != null ? String(borrowerProfile.cashReserves) : current.cashReserves,
-        firstTimeBuyer: borrowerProfile.firstTimeBuyer != null ? String(borrowerProfile.firstTimeBuyer) : current.firstTimeBuyer,
-        vaEligible: borrowerProfile.vaEligible != null ? String(borrowerProfile.vaEligible) : current.vaEligible,
-        estimatedFundingDate: borrowerProfile.estimatedFundingDate ?? current.estimatedFundingDate,
-      }))
-    }
-
     setQuoteHistory(Array.isArray(borrowerQuotes) ? borrowerQuotes : [])
 
-    return { currentQuote, borrowerProfile }
+    return { currentQuote }
   }
 
   const attachSessionQuotes = async (accessToken = authState?.accessToken) => {
@@ -527,6 +505,12 @@ const saveAuthState = (nextAuthState) => {
     cashReserves: Number(refineForm.cashReserves),
     firstTimeBuyer: refineForm.firstTimeBuyer === 'true',
     vaEligible: refineForm.vaEligible === 'true',
+    // Consent captured at lead submission (TCPA) — required by the refine API.
+    tcpaConsent: refineForm.tcpaConsent !== 'false',
+    leadShareConsent: refineForm.leadShareConsent !== 'false',
+    emailOptIn: refineForm.emailOptIn === 'true',
+    consentLanguage:
+      'By submitting, I agree to be contacted about my quote (including TCPA consent) and to share my details with matched lenders and agents.',
   })
 
   const handleRefineProgressSave = async () => {
@@ -763,6 +747,23 @@ const saveAuthState = (nextAuthState) => {
       termYears: quoteResult.termYears != null ? String(quoteResult.termYears) : current.termYears,
     }))
   }, [quoteResult?.id])
+
+  // Prefill what we can into the refine wizard so a returning borrower isn't forced to
+  // retype everything. The refine API requires email/firstName/lastName/phone + creditScore,
+  // but there is no profile endpoint to recover them from — email comes from the signed-in
+  // account and address from the active quote. Only empty fields are filled, so this never
+  // clobbers anything the user has typed.
+  useEffect(() => {
+    if (!authState?.email && !quoteResult) {
+      return
+    }
+    setRefineForm((current) => ({
+      ...current,
+      email: current.email || authState?.email || '',
+      stateCode: current.stateCode || quoteResult?.stateCode || '',
+      countyName: current.countyName || quoteResult?.countyName || '',
+    }))
+  }, [authState?.email, quoteResult?.id])
 
   useEffect(() => {
     if (!authState?.accessToken) {

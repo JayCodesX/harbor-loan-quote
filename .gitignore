@@ -23,3 +23,7 @@ nginx/certs/*.pem
 .aider/
 .continue/
 .codeium/
+
+# Local secrets
+.env
+.env.local

@@ -47,7 +47,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "StrongPass123!",
+          "value": "${KEYCLOAK_DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -67,7 +67,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "StrongPass123!",
+          "value": "${KEYCLOAK_DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],

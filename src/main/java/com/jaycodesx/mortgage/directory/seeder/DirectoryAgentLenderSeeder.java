@@ -12,13 +12,14 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
-@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = true)
 public class DirectoryAgentLenderSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(DirectoryAgentLenderSeeder.class);
@@ -66,6 +67,7 @@ public class DirectoryAgentLenderSeeder {
     private static final int[] LENDER_MIN_CREDIT = { 620, 640, 660, 680 };
 
     @Bean
+    @Order(2)
     public CommandLineRunner seedAgentsAndLenders(
             DirectoryLocationRepository locationRepository,
             DirectoryAgentRepository agentRepository,

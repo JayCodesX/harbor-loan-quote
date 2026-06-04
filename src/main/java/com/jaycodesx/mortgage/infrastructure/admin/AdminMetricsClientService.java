@@ -34,7 +34,8 @@ public class AdminMetricsClientService {
     }
 
     public List<AdminPricingProductResponseDto> fetchProducts() {
-        return getList(properties.pricingBaseUrl(), properties.pricingAudience(), properties.pricingScope(), "/internal/admin/products");
+        return getList(properties.pricingBaseUrl(), properties.pricingAudience(), properties.pricingScope(),
+                "/internal/admin/products", new ParameterizedTypeReference<List<AdminPricingProductResponseDto>>() {});
     }
 
     public AdminPricingProductResponseDto createProduct(AdminPricingProductRequestDto request) {
@@ -88,13 +89,14 @@ public class AdminMetricsClientService {
                 .body(responseType);
     }
 
-    private <T> List<T> getList(String baseUrl, String audience, String scope, String uri) {
+    private <T> List<T> getList(String baseUrl, String audience, String scope, String uri,
+                                ParameterizedTypeReference<List<T>> responseType) {
         return RestClient.builder().baseUrl(baseUrl).build()
                 .get()
                 .uri(uri)
                 .header(HttpHeaders.AUTHORIZATION, bearer(audience, scope))
                 .retrieve()
-                .body(new ParameterizedTypeReference<>() {});
+                .body(responseType);
     }
 
     private String bearer(String audience, String scope) {

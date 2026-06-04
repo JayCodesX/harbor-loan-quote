@@ -1,5 +1,7 @@
 # Harbor Loan Quotes
 
+[![CI](https://github.com/JayCodesX/harbor-loan-quote/actions/workflows/ci.yml/badge.svg)](https://github.com/JayCodesX/harbor-loan-quote/actions/workflows/ci.yml)
+
 Mortgage quote and lead-generation platform with a borrower-facing React app, a separate admin app, an edge Nginx proxy, and Spring Boot microservices.
 
 ## Highlights
@@ -326,11 +328,12 @@ Covered flows:
 - admin workspace access
 
 ## CI
-[Jenkinsfile](./Jenkinsfile) runs:
-- JUnit suites for all Java services
-- frontend unit tests for `web` and `admin-web`
+**GitHub Actions** ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) — triggered **manually** (Actions tab → "Run workflow", or `gh workflow run ci.yml`); not run on push/PR by design, to keep CI usage in check. It runs:
+- JUnit suites for all three Java services (harbor-api, pricing-service, notification-service)
+- frontend unit tests (`test:ci`) for `web` and `admin-web`
 - frontend production builds
-- Playwright E2E tests on the integration-profile Docker stack
+
+A [Jenkinsfile](./Jenkinsfile) mirrors the above and additionally runs the Playwright E2E suite on the integration-profile Docker stack (kept out of GitHub Actions to avoid a heavy full-stack spin-up on every PR).
 
 ## Frontend Apps
 

@@ -25,7 +25,7 @@ app:
     region: ${AWS_REGION:us-east-1}
     poll-delay-ms: ${APP_MESSAGING_POLL_DELAY_MS:3000}
   service-token:
-    secret: ${APP_SERVICE_TOKEN_SECRET:dev-only-notification-service-secret-change-me-1234567890}
+    public-key: ${APP_SERVICE_TOKEN_PUBLIC_KEY:}
     issuer: ${APP_SERVICE_TOKEN_ISSUER:mortgage-loan-api}
     audience: ${APP_SERVICE_TOKEN_AUDIENCE:notification-service}
     scope: ${APP_SERVICE_TOKEN_SCOPE:notification:write}

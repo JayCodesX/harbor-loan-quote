@@ -1,11 +1,12 @@
 package com.jaycodesx.mortgage.infrastructure.security;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -13,52 +14,50 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ServiceTokenValidatorTest {
 
-    private static final String SECRET = "local-dev-notification-service-secret-1234567890";
+    // Ephemeral RSA keypair generated per test run — no key material is committed.
+    private static final KeyPair KEY_PAIR = generateKeyPair();
 
-    @Test
-    void validatesExpectedNotificationToken() {
-        ServiceTokenValidator validator = new ServiceTokenValidator(new ServiceTokenProperties(
-                SECRET,
-                "mortgage-loan-api",
-                "notification-service",
-                "notification:write"
-        ));
+    private final ServiceTokenProperties properties = new ServiceTokenProperties(
+            Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded()),
+            "mortgage-loan-api",
+            "notification-service",
+            "notification:write"
+    );
 
-        String token = Jwts.builder()
+    private final ServiceTokenValidator validator = new ServiceTokenValidator(properties);
+
+    private static KeyPair generateKeyPair() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            return generator.generateKeyPair();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to generate test RSA keypair", e);
+        }
+    }
+
+    private String signedToken(String audience) {
+        return Jwts.builder()
                 .issuer("mortgage-loan-api")
                 .subject("mortgage-loan-api")
-                .audience().add("notification-service").and()
+                .audience().add(audience).and()
                 .claim("scope", "notification:write")
                 .claim("type", "service")
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plusSeconds(300)))
-                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .signWith(KEY_PAIR.getPrivate(), Jwts.SIG.RS256)
                 .compact();
+    }
 
-        assertThatNoException().isThrownBy(() -> validator.validateNotificationToken(token));
+    @Test
+    void validatesExpectedNotificationToken() {
+        assertThatNoException()
+                .isThrownBy(() -> validator.validateNotificationToken(signedToken("notification-service")));
     }
 
     @Test
     void rejectsWrongAudience() {
-        ServiceTokenValidator validator = new ServiceTokenValidator(new ServiceTokenProperties(
-                SECRET,
-                "mortgage-loan-api",
-                "notification-service",
-                "notification:write"
-        ));
-
-        String token = Jwts.builder()
-                .issuer("mortgage-loan-api")
-                .subject("mortgage-loan-api")
-                .audience().add("pricing-service").and()
-                .claim("scope", "notification:write")
-                .claim("type", "service")
-                .issuedAt(Date.from(Instant.now()))
-                .expiration(Date.from(Instant.now().plusSeconds(300)))
-                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
-                .compact();
-
-        assertThatThrownBy(() -> validator.validateNotificationToken(token))
+        assertThatThrownBy(() -> validator.validateNotificationToken(signedToken("pricing-service")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("audience");
     }
