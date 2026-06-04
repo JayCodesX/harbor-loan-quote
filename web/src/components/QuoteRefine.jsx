@@ -72,6 +72,22 @@ export default function QuoteRefine({
                   <h2>Step 1: Borrower profile</h2>
                   <div className="borrower-v3-stepper-fields">
                     <article className="v3-landing-field">
+                      <label htmlFor="firstName">First name</label>
+                      <input id="firstName" type="text" name="firstName" value={refineForm?.firstName || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="First name" />
+                    </article>
+                    <article className="v3-landing-field">
+                      <label htmlFor="lastName">Last name</label>
+                      <input id="lastName" type="text" name="lastName" value={refineForm?.lastName || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="Last name" />
+                    </article>
+                    <article className="v3-landing-field">
+                      <label htmlFor="email">Email</label>
+                      <input id="email" type="email" name="email" value={refineForm?.email || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="you@example.com" />
+                    </article>
+                    <article className="v3-landing-field">
+                      <label htmlFor="phone">Phone</label>
+                      <input id="phone" type="tel" name="phone" value={refineForm?.phone || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="(555) 555-5555" />
+                    </article>
+                    <article className="v3-landing-field">
                       <label htmlFor="annualIncome">Annual income</label>
                       <input id="annualIncome" type="number" name="annualIncome" value={refineForm?.annualIncome || ''} onChange={handleInput?.(setRefineForm)} className="v3-landing-field-input" placeholder="0" />
                     </article>
