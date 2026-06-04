@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
 class EventSourceMock {
+  addEventListener() {}
+  removeEventListener() {}
   close() {}
 }
 
@@ -16,7 +18,9 @@ function mockFetch(routes = {}) {
           ok: true,
           status: 200,
           json: async () => payload,
-          text: async () => '',
+          // callApi reads the body via response.text() (to tolerate empty 202/204
+          // bodies), so the mock must serve the payload as text too — matching real fetch.
+          text: async () => (payload == null ? '' : JSON.stringify(payload)),
         })
       }
     }
