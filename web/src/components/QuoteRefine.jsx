@@ -62,7 +62,11 @@ export default function QuoteRefine({
       return
     }
     setSubmitError('')
-    await handleRefineProgressSave?.()
+    // The refine API rejects any partial payload, so only persist progress once the fields it
+    // validates (steps 1 & 2) are complete — avoids firing requests the backend will 400.
+    if (!validateStep(1) && !validateStep(2)) {
+      await handleRefineProgressSave?.()
+    }
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
     }
