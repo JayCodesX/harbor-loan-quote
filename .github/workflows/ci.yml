@@ -1,16 +1,12 @@
 name: CI
 
+# Manual-only: run from the Actions tab ("Run workflow") or `gh workflow run ci.yml`.
+# Intentionally NOT triggered on push/PR to avoid burning CI minutes / hitting limits.
 on:
-  push:
-    branches: [ main ]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   backend:
