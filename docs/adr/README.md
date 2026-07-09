@@ -31,12 +31,21 @@ ADRs are grouped by delivery phase:
 | [0048](./phase-2-pricing-engine/0048-dynamic-rate-sheet-update-strategy.md) | Dynamic Rate Sheet Update Strategy | Accepted | 2026-04-02 |
 | [0049](./phase-2-pricing-engine/0049-real-time-notification-via-sse.md) | Real-Time Borrower Notification via Server-Sent Events (SSE) | Accepted | 2026-04-01 |
 | [0050](./phase-2-pricing-engine/0050-message-broker-selection.md) | Message Broker Selection — RabbitMQ (Phase 2) and SQS (Phase 3) | Accepted | 2026-04-02 |
+| [0052](./phase-2-pricing-engine/0052-kafka-rate-change-event-stream.md) | Kafka (Redpanda) for the Rate-Change Event Stream, Complementing RabbitMQ | Proposed | 2026-07-09 |
 
 ## Phase 3 — Scale & Operations
 
 | ADR | Title | Status | Date |
 |----|-------|--------|------|
 | [0028](./phase-3-scale-and-operations/0028-aws-migration-strategy.md) | AWS Migration Strategy — Trigger Criteria and Migration Path | Proposed | — |
+| [0030](./phase-3-scale-and-operations/0030-observability-strategy.md) | Observability — OpenTelemetry + Grafana vs. AWS X-Ray vs. Datadog | Accepted | 2026-07-09 |
+
+## Phase 4 — AI Agent Integration
+
+| ADR | Title | Status | Date |
+|----|-------|--------|------|
+| [0051](./phase-4-ai-integration/0051-expose-pricing-via-mcp.md) | Expose the Pricing Engine to AI Agents via a Model Context Protocol (MCP) Server | Accepted | 2026-07-09 |
+| [0053](./phase-4-ai-integration/0053-secure-and-rate-limit-the-mcp-boundary.md) | Secure and Rate-Limit the Agent-Facing MCP Boundary — API Key + Bucket4j | Accepted | 2026-07-09 |
 
 ---
 
