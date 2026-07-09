@@ -1,6 +1,18 @@
 spring:
   application:
     name: pricing-service
+  ai:
+    mcp:
+      server:
+        name: harbor-pricing-mcp
+        version: 1.0.0
+        # SYNC = blocking request/response tools (matches our JPA/JDBC service).
+        type: SYNC
+        # SSE transport endpoints exposed by the WebMVC starter:
+        #   GET  /sse            -> agent opens the event stream
+        #   POST /mcp/message    -> agent sends tool calls
+        sse-endpoint: /sse
+        sse-message-endpoint: /mcp/message
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -26,6 +38,19 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+
+harbor:
+  # Agent-facing MCP boundary (ADR-0053). Secured + rate-limited independently of
+  # the internal service-token flow below.
+  mcp:
+    # Locally the gateway is off so you can explore the MCP server with no key.
+    # In any deployed environment set HARBOR_MCP_ENABLED=true and supply keys.
+    enabled: ${HARBOR_MCP_ENABLED:false}
+    # Comma-separated list of accepted API keys, injected from a secret. Never
+    # commit real keys; the empty default means "no key accepted" when enabled.
+    api-keys: ${HARBOR_MCP_API_KEYS:}
+    # Per-key token-bucket size and per-minute refill.
+    requests-per-minute: ${HARBOR_MCP_RPM:60}
 
 app:
   transport:
