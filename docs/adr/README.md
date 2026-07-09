@@ -31,7 +31,7 @@ ADRs are grouped by delivery phase:
 | [0048](./phase-2-pricing-engine/0048-dynamic-rate-sheet-update-strategy.md) | Dynamic Rate Sheet Update Strategy | Accepted | 2026-04-02 |
 | [0049](./phase-2-pricing-engine/0049-real-time-notification-via-sse.md) | Real-Time Borrower Notification via Server-Sent Events (SSE) | Accepted | 2026-04-01 |
 | [0050](./phase-2-pricing-engine/0050-message-broker-selection.md) | Message Broker Selection — RabbitMQ (Phase 2) and SQS (Phase 3) | Accepted | 2026-04-02 |
-| [0052](./phase-2-pricing-engine/0052-kafka-rate-change-event-stream.md) | Kafka (Redpanda) for the Rate-Change Event Stream, Complementing RabbitMQ | Proposed | 2026-07-09 |
+| [0052](./phase-2-pricing-engine/0052-kafka-rate-change-event-stream.md) | Kafka (Redpanda) for the Rate-Change Event Stream, Complementing RabbitMQ | Accepted | 2026-07-09 |
 
 ## Phase 3 — Scale & Operations
 

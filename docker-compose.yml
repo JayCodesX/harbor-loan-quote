@@ -322,6 +322,34 @@ services:
       timeout: 5s
       retries: 10
 
+  # Redpanda — Kafka-API-compatible event streaming for the rate-change stream
+  # (ADR-0052). Single Go binary, no JVM/ZooKeeper. Two listeners: containers use
+  # redpanda:29092, host tools use localhost:9092.
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: mortgage-loan-redpanda
+    mem_limit: 768m
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      - --advertise-kafka-addr=INTERNAL://redpanda:29092,EXTERNAL://localhost:9092
+      - --mode=dev-container
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -qE 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
   localstack:
     profiles: ["integration"]
     image: localstack/localstack:3.8
@@ -345,6 +373,7 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  redpanda_data:
   localstack_data:
   certbot_www:
   letsencrypt:

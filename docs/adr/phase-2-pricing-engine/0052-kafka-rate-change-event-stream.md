@@ -1,10 +1,10 @@
 # ADR 0052: Introduce Kafka (Redpanda) for the Rate-Change Event Stream, Complementing RabbitMQ
 
 ## Status
-Proposed
+Accepted
 
 ## Date
-2026-07-09
+2026-07-09 (proposed) · 2026-07-09 (accepted, implemented)
 
 ## Phase
 2 — Pricing Engine
@@ -34,9 +34,39 @@ work-queue broker is awkward and loses history.
 ## Decision
 Introduce **Kafka, via Redpanda** (Kafka-API-compatible), for the **rate-change
 event stream only**. Publish rate-sheet activation to a `pricing.rate-sheet.activated`
-topic; add independent consumer groups for cache invalidation, SSE push, and
-audit. **Keep RabbitMQ** for quote-job dispatch and notification work queues —
-each broker is used for the pattern it fits.
+topic, keyed by `investorId` so per-investor activations stay ordered. **Keep
+RabbitMQ** for quote-job dispatch and notification work queues — each broker is
+used for the pattern it fits.
+
+Two **independent Kafka consumer groups** read the stream:
+
+1. **`rate-change-audit`** (pricing-service) — persists each activation to a
+   `rate_change_audit` table. This is the concrete retention/replay justification:
+   the topic can be re-read from the beginning (`auto-offset-reset: earliest`) to
+   rebuild the table or seed a new consumer. Idempotent via a unique
+   `rate_sheet_id`.
+2. **`rate-change-sse`** (notification-service) — broadcasts to connected borrower
+   sessions over SSE, migrating this flow off RabbitMQ. It only cares about live
+   events (`auto-offset-reset: latest`).
+
+**Cache invalidation is deliberately NOT a Kafka consumer.** It stays in-process
+and synchronous at the write site (`RateSheetService` → `PricingCacheService.evictAll()`).
+Rationale: the cache is **shared Redis**, so a single `evictAll()` already clears
+it for every pricing-service instance, even scaled horizontally. Making eviction
+an async consumer would add a failure mode and a staleness window the shared cache
+does not require. (This refines the original proposal, which listed cache
+invalidation as a third consumer.)
+
+Use **Redpanda** rather than Apache Kafka because it is a single Go binary with
+no JVM or ZooKeeper/KRaft overhead, materially lighter to operate on a small
+deployment target, while exposing the identical Kafka API and client libraries
+(Spring for Apache Kafka).
+
+The producer runs **alongside the existing RabbitMQ path** during the transition
+(`RateSheetService` publishes to both): RabbitMQ still drives the current
+notification flow, Kafka feeds the new consumer groups. Cutover is a config flip
+(`app.kafka.enabled=true`, `app.rabbitmq.consumer.enabled=false`), not a big-bang
+rewrite.
 
 Use **Redpanda** rather than Apache Kafka because it is a single Go binary with
 no JVM or ZooKeeper/KRaft overhead, materially lighter to operate on a small
@@ -87,3 +117,14 @@ deployment target, while exposing the identical Kafka API and client libraries
   observability work (ADR-0030).
 - Local development adds a Redpanda container to `docker-compose`; production
   adds a single Redpanda node (or managed Kafka) sized to the event volume.
+- **Dual-write caveat (known, accepted for now).** The event is published from
+  inside the `@Transactional` activation method, before commit — matching the
+  existing RabbitMQ publish. If the transaction rolls back after the send, a
+  phantom event is emitted. The correct fix is a **transactional outbox** (write
+  the event to an outbox table in the same transaction, relay to Kafka
+  asynchronously). Deferred deliberately: it is the same shape for both brokers
+  and is better done once, as a dedicated change, than bolted onto this one.
+- **Single-partition ordering.** The topic uses one partition for the single-node
+  deployment, giving total ordering. At higher scale, more partitions rely on the
+  `investorId` key to preserve per-investor order; consumers must not assume global
+  ordering across investors then.

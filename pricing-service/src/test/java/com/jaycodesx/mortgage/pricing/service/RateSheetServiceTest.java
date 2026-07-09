@@ -1,6 +1,7 @@
 package com.jaycodesx.mortgage.pricing.service;
 
 import com.jaycodesx.mortgage.pricing.dto.RateSheetEntryRequest;
+import com.jaycodesx.mortgage.pricing.messaging.RateChangeEventPublisher;
 import com.jaycodesx.mortgage.pricing.messaging.RateSheetActivatedPublisher;
 import com.jaycodesx.mortgage.pricing.model.RateSheetEntry;
 import com.jaycodesx.mortgage.pricing.model.RateSheetPublication;
@@ -41,6 +42,9 @@ class RateSheetServiceTest {
     @Mock
     private RateSheetActivatedPublisher activatedPublisher;
 
+    @Mock
+    private RateChangeEventPublisher rateChangeEventPublisher;
+
     @InjectMocks
     private RateSheetService rateSheetService;
 
@@ -79,6 +83,8 @@ class RateSheetServiceTest {
 
         verify(pricingCacheService).evictAll();
         verify(activatedPublisher).publish(saved);
+        // Both fan-out paths fire: RabbitMQ (existing) and the Kafka event stream (ADR-0052).
+        verify(rateChangeEventPublisher).publish(saved);
     }
 
     @Test
