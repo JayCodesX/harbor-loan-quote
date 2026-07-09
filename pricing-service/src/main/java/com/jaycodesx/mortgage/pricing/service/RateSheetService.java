@@ -1,6 +1,7 @@
 package com.jaycodesx.mortgage.pricing.service;
 
 import com.jaycodesx.mortgage.pricing.dto.RateSheetEntryRequest;
+import com.jaycodesx.mortgage.pricing.messaging.RateChangeEventPublisher;
 import com.jaycodesx.mortgage.pricing.messaging.RateSheetActivatedPublisher;
 import com.jaycodesx.mortgage.pricing.model.RateSheetEntry;
 import com.jaycodesx.mortgage.pricing.model.RateSheetPublication;
@@ -32,15 +33,18 @@ public class RateSheetService {
     private final RateSheetEntryRepository entryRepository;
     private final PricingCacheService pricingCacheService;
     private final RateSheetActivatedPublisher activatedPublisher;
+    private final RateChangeEventPublisher rateChangeEventPublisher;
 
     public RateSheetService(RateSheetPublicationRepository publicationRepository,
                              RateSheetEntryRepository entryRepository,
                              PricingCacheService pricingCacheService,
-                             RateSheetActivatedPublisher activatedPublisher) {
+                             RateSheetActivatedPublisher activatedPublisher,
+                             RateChangeEventPublisher rateChangeEventPublisher) {
         this.publicationRepository = publicationRepository;
         this.entryRepository = entryRepository;
         this.pricingCacheService = pricingCacheService;
         this.activatedPublisher = activatedPublisher;
+        this.rateChangeEventPublisher = rateChangeEventPublisher;
     }
 
     /**
@@ -79,8 +83,18 @@ public class RateSheetService {
                 .toList();
         entryRepository.saveAll(entryEntities);
 
+        // Cache eviction stays in-process and synchronous: the cache is shared Redis,
+        // so one evictAll() clears it for every pricing-service instance. It is
+        // deliberately NOT a Kafka consumer (ADR-0052) — that would be async
+        // complexity the shared cache does not need.
         pricingCacheService.evictAll();
+
+        // Two fan-out paths, each for its pattern (ADR-0050, ADR-0052):
+        //   RabbitMQ  -> existing borrower-notification work-queue flow.
+        //   Kafka     -> rate-change event stream for independent consumer groups
+        //                (audit here; SSE push in notification-service).
         activatedPublisher.publish(saved);
+        rateChangeEventPublisher.publish(saved);
 
         return saved;
     }

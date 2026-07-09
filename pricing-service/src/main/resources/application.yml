@@ -18,6 +18,21 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+  # Kafka/Redpanda — rate-change event stream (ADR-0052). Only exercised when
+  # app.kafka.enabled=true; otherwise no producer sends and no listeners run.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: com.jaycodesx.mortgage.pricing.messaging
+        spring.json.value.default.type: com.jaycodesx.mortgage.pricing.messaging.RateSheetActivatedMessage
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3307/mortgage_pricing?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
@@ -53,6 +68,11 @@ harbor:
     requests-per-minute: ${HARBOR_MCP_RPM:60}
 
 app:
+  # Rate-change event stream (ADR-0052). Off locally by default so the service
+  # boots with no Redpanda; set true (and run Redpanda) to exercise the stream.
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:false}
+    topic: ${APP_KAFKA_TOPIC:pricing.rate-sheet.activated}
   transport:
     type: ${APP_TRANSPORT_TYPE:noop}
   service-token:
