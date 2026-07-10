@@ -5,8 +5,9 @@ This project records significant architectural decisions as ADRs. Each ADR captu
 ADRs are grouped by delivery phase:
 
 - **Phase 1 — Foundation:** service boundaries, messaging abstraction, auth, testing
-- **Phase 2 — Pricing Engine:** rate sheets, LLPA pricing, real-time updates, broker selection
-- **Phase 3 — Scale & Operations:** AWS migration and operational concerns
+- **Phase 2 — Pricing Engine:** rate sheets, LLPA pricing, real-time updates, broker selection, Kafka event stream
+- **Phase 3 — Scale & Operations:** observability, deployment (Oracle Cloud + Cloudflare Tunnel), AWS migration path
+- **Phase 4 — AI Agent Integration:** exposing the pricing engine to LLM agents via MCP, securing the agent boundary, the agent client
 
 > **Status legend:** `Accepted` — decided and in effect (in design or code) · `Proposed` — drafted, not finalized.
 
@@ -52,7 +53,7 @@ ADRs are grouped by delivery phase:
 ---
 
 ### A note on implementation status
-These ADRs capture **design decisions**. The 6→3 service consolidation is complete: harbor-api now owns auth, borrowers, leads, and quotes in-process; the standalone auth-service, borrower-service, and lead-service modules are gone. The async messaging layer runs locally over RabbitMQ — harbor-api and pricing-service publish to topic exchanges, and notification-service consumes both flows (ADR-0007, ADR-0050). SQS remains the Phase-3 target adapter, available behind the `integration` profile. See the [architecture overview](../architecture.md) for full detail.
+These ADRs capture **design decisions**. The 6→3 service consolidation is complete: harbor-api now owns auth, borrowers, leads, and quotes in-process; the standalone auth-service, borrower-service, and lead-service modules are gone. RabbitMQ carries work-queue messaging (ADR-0007, ADR-0050); a Kafka/Redpanda event stream carries rate-change fan-out to independent audit + SSE consumers (ADR-0052). `pricing-service` exposes its engine to AI agents over MCP (ADR-0051/0053), driven by a provider-agnostic client (ADR-0054). Services are traced with OpenTelemetry → Grafana (ADR-0030), and the stack deploys to Oracle Cloud behind a Cloudflare Tunnel (ADR-0055). SQS remains the Phase-3 target adapter behind the `integration` profile. See the [architecture overview](../architecture.md) for full detail.
 
 ### Archive
 The [`archive/`](./archive) folder holds earlier exploratory ADRs that are **no longer active** and not slated for implementation. They are retained for historical context only and are not part of the current design index above.
