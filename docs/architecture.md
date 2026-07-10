@@ -4,7 +4,7 @@ Harbor Loan Quotes is a mortgage quote and lead-generation platform built as a s
 
 This document expands on the high-level overview in the [README](../README.md).
 
-> **Implementation status.** The synchronous paths (quote creation/retrieval, calculators, auth, borrower APIs, lead capture, metrics, admin) are implemented and run in harbor-api. The **asynchronous messaging layer runs locally over RabbitMQ** (the default transport in Docker Compose): harbor-api publishes quote notification snapshots and pricing-service publishes rate-sheet-activated events; notification-service consumes both and pushes SSE to the frontend. SQS is the Phase-3 target adapter, available behind the `integration` profile. See [ADR-0007](./adr/phase-1-foundation/0007-messaging-transport-abstraction.md) and [ADR-0050](./adr/phase-2-pricing-engine/0050-message-broker-selection.md).
+> **Implementation status.** The synchronous paths (quote creation/retrieval, calculators, auth, borrower APIs, lead capture, metrics, admin) run in harbor-api. **RabbitMQ** carries work-queue messaging (default transport in Docker Compose). A **Kafka/Redpanda event stream** carries rate-change fan-out to independent audit + SSE consumers ([ADR-0052](./adr/phase-2-pricing-engine/0052-kafka-rate-change-event-stream.md)). `pricing-service` exposes its engine to **AI agents over MCP** ([ADR-0051](./adr/phase-4-ai-integration/0051-expose-pricing-via-mcp.md), [ADR-0053](./adr/phase-4-ai-integration/0053-secure-and-rate-limit-the-mcp-boundary.md)). Services are instrumented with **OpenTelemetry → Grafana** ([ADR-0030](./adr/phase-3-scale-and-operations/0030-observability-strategy.md)), and the full stack deploys to **Oracle Cloud behind a Cloudflare Tunnel** ([ADR-0055](./adr/phase-3-scale-and-operations/0055-oracle-cloud-cloudflare-tunnel-deployment.md)).
 
 ## System diagram
 
@@ -12,18 +12,23 @@ This document expands on the high-level overview in the [README](../README.md).
 flowchart LR
     B["Borrower App (web)"] --> E["Nginx Edge"]
     A["Admin App (admin-web)"] --> E
+    AGENT["AI Agent (LLM)"] -->|"MCP (API key + rate limit)"| PRICING
     E --> API["harbor-api"]
     E --> NOTIFY["notification-service"]
     API --> REDIS["Redis"]
-    API --> MYSQL["mortgage_quote_workflow\n(auth/borrower/lead/quote tables)"]
-    API -->|"sync HTTP"| PRICING["pricing-service"]
-    API -->|"quote.notification.events\nQUOTE_NOTIFICATION_SNAPSHOT"| MQ["RabbitMQ"]
+    API --> MYSQL["mortgage_quote_workflow"]
+    API -->|"sync HTTP"| PRICING["pricing-service (+ MCP)"]
+    API -->|"QUOTE_NOTIFICATION_SNAPSHOT"| MQ["RabbitMQ"]
     PRICING --> MYSQLP["mortgage_pricing"]
     PRICING --> REDIS
-    PRICING -->|"rate-sheet.events\nRATE_SHEET_ACTIVATED"| MQ
-    MQ -->|"quote.notification.snapshot\nrate-sheet.activated"| NOTIFY
+    PRICING -->|"RATE_SHEET_ACTIVATED"| MQ
+    PRICING -->|"pricing.rate-sheet.activated"| KAFKA["Kafka / Redpanda"]
+    KAFKA -->|"rate-change-audit"| PRICING
+    KAFKA -->|"rate-change-sse"| NOTIFY
+    MQ --> NOTIFY
     NOTIFY --> REDIS
     NOTIFY --> E
+    API & PRICING & NOTIFY -.->|OTLP| OTEL["Grafana / OTel"]
 ```
 
 ## Design principles
@@ -52,8 +57,8 @@ flowchart LR
 | Service | Owns | Store |
 |---|---|---|
 | `harbor-api` (`api`) | Public quote creation/retrieval, refinement orchestration, calculators, session dedupe, metrics aggregation, notification publishing, service-JWT issuance; auth (registration, login, token issuance); borrower creation/retrieval/metrics; lead creation/metrics | `mortgage_quote_workflow` (auth/borrower/lead/quote tables) |
-| `pricing-service` | Synchronous quote pricing (called by harbor-api over HTTP), pricing catalog (products, rate sheets, adjustment rules), Redis pricing cache, rate-sheet-activated event publishing | `mortgage_pricing` |
-| `notification-service` | Quote notification snapshot consumption, rate-sheet-activated event consumption, Redis snapshot cache, snapshot fetch endpoint, SSE stream | Redis only |
+| `pricing-service` | Synchronous quote pricing (called by harbor-api over HTTP), pricing catalog (products, rate sheets, adjustment rules), Redis pricing cache, rate-sheet-activated publishing to RabbitMQ + Kafka, the `rate-change-audit` Kafka consumer, and the **MCP server** (tool adapters + API-key/rate-limit gateway) | `mortgage_pricing` |
+| `notification-service` | Quote notification snapshot consumption, rate-sheet-activated consumption (RabbitMQ or the `rate-change-sse` Kafka group), Redis snapshot cache, snapshot fetch endpoint, SSE stream | Redis only |
 
 ## Database ownership
 
@@ -91,6 +96,18 @@ Async messaging is built against a **broker-agnostic transport abstraction** ([A
 
 harbor-api declares the `quote.notification.events` exchange and publishes only. notification-service declares all exchanges, queues, and bindings for both flows. pricing-service declares the `rate-sheet.events` exchange independently; AMQP is idempotent on re-declaration of matching durable exchanges.
 
+### Kafka event stream (rate change)
+
+Separate from the RabbitMQ work queues, a **Kafka/Redpanda event stream** carries rate-sheet activations to multiple independent consumer groups that need retention and replay ([ADR-0052](./adr/phase-2-pricing-engine/0052-kafka-rate-change-event-stream.md)). This is *not* a `MessageTransport` adapter — it is an additive channel for a fan-out/replay pattern the work-queue broker doesn't fit.
+
+| Component | Name |
+|---|---|
+| Topic | `pricing.rate-sheet.activated` (keyed by `investorId` for per-investor ordering) |
+| Consumer group | `rate-change-audit` (pricing-service) → `rate_change_audit` table; `auto-offset-reset: earliest` (full replay) |
+| Consumer group | `rate-change-sse` (notification-service) → SSE broadcast; `auto-offset-reset: latest` (live only) |
+
+Consumers are idempotent (unique `rate_sheet_id` + a race guard), so at-least-once redelivery and offset replay are safe. Cache invalidation stays synchronous at the write site (shared Redis) rather than becoming a third consumer. A transactional outbox is the noted next step for the publish-inside-transaction dual-write.
+
 ### Contract hardening
 
 Each payload carries `schemaVersion` and `messageId`. Consumers reject unsupported schema versions, dedupe on `messageId`, and route poison messages to DLQs. The LocalStack-SQS DLQ tooling is described in the [operations runbook](./ops-runbook.md).
@@ -111,17 +128,32 @@ Lead processing was consolidated in-process inside harbor-api (ADR-0003). The `q
 
 The borrower frontend generates and persists a session ID, sent as `X-Session-Id`. `harbor-api` uses Redis to track active sessions, detect in-flight duplicate quote requests, return the existing `quoteId` when a duplicate is already `QUEUED`/`PROCESSING`, and maintain fast status snapshots.
 
+## AI agent integration (MCP)
+
+`pricing-service` runs a **Model Context Protocol** server (Spring AI) that exposes the pricing engine to LLM agents as discoverable, typed tools ([ADR-0051](./adr/phase-4-ai-integration/0051-expose-pricing-via-mcp.md)). Tools (`getRateQuote`, `listLoanPrograms`, `getLoanProgramDetails`) are thin `@Tool` adapters over the existing `QuotePricingService` — no pricing logic is reimplemented, and each returns a dedicated record so the agent contract is decoupled from JPA entities. Transport is SSE over Spring MVC (`GET /sse`, `POST /mcp/message`).
+
+The agent boundary is secured independently of the internal service-token flow ([ADR-0053](./adr/phase-4-ai-integration/0053-secure-and-rate-limit-the-mcp-boundary.md)): a servlet filter scoped to `/sse` + `/mcp/**` enforces API-key auth then a per-key Bucket4j token bucket, both *before* a request reaches the DB or cache. A provider-agnostic client ([`mcp-client-demo`](../mcp-client-demo), [ADR-0054](./adr/phase-4-ai-integration/0054-mcp-client-agent-demo.md)) drives it over the OpenAI Chat Completions standard, so any compatible model works by config.
+
+## Observability
+
+All services are instrumented with **Micrometer Tracing → OpenTelemetry**, exported over OTLP to a Grafana stack (Tempo/Loki/Prometheus via one `otel-lgtm` container) ([ADR-0030](./adr/phase-3-scale-and-operations/0030-observability-strategy.md)). Application code emits a vendor-neutral standard; the backend is swappable by config. Trace context propagates across the Kafka boundary via message headers, so a rate-sheet activation is a single trace spanning HTTP → JDBC → Kafka producer → audit consumer, and into notification-service's SSE consumer under the same trace id.
+
+## Deployment
+
+The full stack deploys to a single **Oracle Cloud Always-Free Ampere (ARM)** instance via Docker Compose, exposed through an outbound **Cloudflare Tunnel** ([ADR-0055](./adr/phase-3-scale-and-operations/0055-oracle-cloud-cloudflare-tunnel-deployment.md)). No inbound ports are opened (the OCI security list stays closed); Cloudflare terminates TLS and forwards to an internal nginx edge (web/api/admin) and to `pricing-service` for the MCP endpoint. A `docker-compose.prod.yml` override layers the tunnel and prod config onto the base compose; see the [deploy runbook](./deploy/oracle-cloud-runbook.md). AWS remains the documented managed-scale path ([ADR-0028](./adr/phase-3-scale-and-operations/0028-aws-migration-strategy.md)).
+
 ## Technology choices
 
-- **Java 17 / Spring Boot** for all backend services
+- **Java 17/21 / Spring Boot** for all backend services; **Spring AI** for the MCP server
 - **MySQL** for per-service relational persistence
 - **Redis** for session state, dedupe, caching, metrics counters, and notification snapshots
-- **RabbitMQ** (active local broker) via the broker-agnostic transport abstraction; SQS for Phase-3 (LocalStack emulates it locally)
-- **Keycloak** for the optional OIDC profile
+- **RabbitMQ** for work queues (broker-agnostic transport; SQS is the Phase-3 adapter) + **Kafka/Redpanda** for the rate-change event stream
+- **OpenTelemetry + Grafana** (Tempo/Loki/Prometheus) for tracing/metrics/logs
+- **Bucket4j** for MCP rate limiting; **Keycloak** for the optional OIDC profile
 - **React + Vite** for the borrower and admin apps
-- **Nginx** as the public edge reverse proxy (HTTP `8088`, TLS `8443`)
-- **Docker Compose** for local orchestration; **Jenkins** for CI
+- **Nginx** as the edge reverse proxy; **Cloudflare Tunnel** for public ingress in production
+- **Docker Compose** for orchestration (local + Oracle Cloud); **Jenkins** for CI; **Testcontainers** for integration tests
 
 ## Design history
 
-The system was built incrementally and every significant decision is captured as an Architecture Decision Record under [`docs/adr`](./adr), organized by phase (foundation → pricing engine → scale & operations).
+The system was built incrementally and every significant decision is captured as an Architecture Decision Record under [`docs/adr`](./adr), organized by phase (foundation → pricing engine → scale & operations → AI agent integration).

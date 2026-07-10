@@ -1,0 +1,95 @@
+# Production override — Cloudflare Tunnel deployment on Oracle Cloud (ADR-0055).
+#
+# Layers on top of docker-compose.yml. Ingress is the outbound cloudflared tunnel,
+# so NO host ports are published for app traffic and the OCI security list stays
+# closed. TLS is terminated at Cloudflare; cloudflared -> edge-tunnel (nginx :80).
+#
+# Usage (on the instance):
+#   cp .env.prod.example .env.prod            # fill in secrets
+#   cp cloudflared/config.example.yml cloudflared/config.yml   # set tunnel id
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml \
+#     up -d --build \
+#     mysql redis rabbitmq redpanda otel-lgtm \
+#     pricing-service notification-service api web admin-web edge-tunnel cloudflared
+#
+# The explicit service list intentionally omits the dev `edge` (self-signed) and
+# `keycloak` — the tunnel + internal token provider replace them.
+
+services:
+  api:
+    restart: unless-stopped
+    environment:
+      CORS_ALLOWED_ORIGINS: https://oraroute.com,https://www.oraroute.com
+      OTLP_TRACING_ENDPOINT: http://otel-lgtm:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING: "0.1"
+
+  pricing-service:
+    restart: unless-stopped
+    environment:
+      HARBOR_MCP_ENABLED: "true"
+      HARBOR_MCP_API_KEYS: ${HARBOR_MCP_API_KEYS}
+      HARBOR_MCP_RPM: ${HARBOR_MCP_RPM:-60}
+      APP_KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      OTLP_TRACING_ENDPOINT: http://otel-lgtm:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING: "0.1"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  notification-service:
+    restart: unless-stopped
+    environment:
+      APP_KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      # Kafka SSE consumer replaces the RabbitMQ one (ADR-0052).
+      APP_RABBITMQ_CONSUMER_ENABLED: "false"
+      OTLP_TRACING_ENDPOINT: http://otel-lgtm:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING: "0.1"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  web:
+    restart: unless-stopped
+  admin-web:
+    restart: unless-stopped
+  mysql:
+    restart: unless-stopped
+  redis:
+    restart: unless-stopped
+  rabbitmq:
+    restart: unless-stopped
+  redpanda:
+    restart: unless-stopped
+  otel-lgtm:
+    restart: unless-stopped
+
+  # nginx edge for the tunnel: HTTP-only routing, reachable only inside the Docker
+  # network (no published ports). cloudflared forwards to it.
+  edge-tunnel:
+    image: nginx:1.27-alpine
+    container_name: mortgage-loan-edge-tunnel
+    restart: unless-stopped
+    depends_on:
+      - web
+      - admin-web
+      - api
+      - notification-service
+    volumes:
+      - ./nginx/default.tunnel.conf:/etc/nginx/conf.d/default.conf:ro
+    expose:
+      - "80"
+
+  # Cloudflare Tunnel: outbound-only ingress. No inbound ports; the OCI security
+  # list can stay closed. Ingress routing lives in cloudflared/config.yml.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: mortgage-loan-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - edge-tunnel
+      - pricing-service

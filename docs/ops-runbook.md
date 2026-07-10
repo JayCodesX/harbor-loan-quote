@@ -2,7 +2,7 @@
 
 Operator-facing procedures for running, verifying, and recovering the Harbor Loan Quotes stack. For system design, see [architecture.md](./architecture.md).
 
-> **Status note.** The asynchronous messaging layer runs locally over RabbitMQ (the default transport in Docker Compose). harbor-api publishes quote notification snapshots; pricing-service publishes rate-sheet-activated events; notification-service consumes both. SQS/LocalStack is the optional Phase-3 adapter path, available behind the `integration` profile.
+> **Status note.** RabbitMQ carries work-queue messaging (default transport in Docker Compose); a Kafka/Redpanda event stream carries rate-change fan-out (audit + SSE consumers). `pricing-service` exposes MCP tools for AI agents; services are traced with OpenTelemetry → Grafana. SQS/LocalStack is the optional Phase-3 adapter path behind the `integration` profile. For cloud deploy, see the [Oracle Cloud runbook](./deploy/oracle-cloud-runbook.md).
 
 ## Run modes
 
@@ -13,6 +13,16 @@ docker compose up -d --build
 ```
 
 Brings up: `rabbitmq`, `mysql`, `redis`, `api`, `pricing-service`, `notification-service`, `admin-web`, `web`, `edge`.
+
+**Optional capabilities** (set as env vars for the relevant services):
+
+| Capability | Flags |
+|---|---|
+| MCP server (agent tools) | `HARBOR_MCP_ENABLED=true`, `HARBOR_MCP_API_KEYS=<key>`, `HARBOR_MCP_RPM=60` on pricing-service |
+| Kafka event stream | `APP_KAFKA_ENABLED=true`, `KAFKA_BOOTSTRAP_SERVERS=localhost:9092` on pricing + notification; run `docker compose up -d redpanda` |
+| Tracing → Grafana | `docker compose up -d otel-lgtm`; services default `OTLP_TRACING_ENDPOINT=http://localhost:4318/v1/traces` |
+
+The agent demo (`mcp-client-demo/`) drives the MCP server with any OpenAI-compatible model.
 
 **Optional LocalStack/SQS profile (Phase-3 path):**
 
@@ -41,6 +51,8 @@ The [`.env.integration`](../.env.integration) file switches the transport to SQS
 - Admin app (TLS): `https://localhost:8443/admin/`
 - Health: `https://localhost:8443/actuator/health`
 - RabbitMQ management UI: `http://localhost:15672` (guest/guest)
+- Grafana (traces/metrics, when `otel-lgtm` is up): `http://localhost:3000`
+- MCP endpoint (when enabled, on pricing-service): `http://localhost:8084/sse` (requires `X-API-Key`)
 
 If local TLS certs are missing:
 
