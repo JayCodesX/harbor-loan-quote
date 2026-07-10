@@ -41,6 +41,7 @@ ADRs are grouped by delivery phase:
 | [0028](./phase-3-scale-and-operations/0028-aws-migration-strategy.md) | AWS Migration Strategy — Trigger Criteria and Migration Path | Proposed | — |
 | [0030](./phase-3-scale-and-operations/0030-observability-strategy.md) | Observability — OpenTelemetry + Grafana vs. AWS X-Ray vs. Datadog | Accepted | 2026-07-09 |
 | [0055](./phase-3-scale-and-operations/0055-oracle-cloud-cloudflare-tunnel-deployment.md) | Deployment Topology — Oracle Cloud Always-Free + Cloudflare Tunnel | Accepted | 2026-07-09 |
+| [0056](./phase-3-scale-and-operations/0056-public-demo-abuse-protection.md) | Abuse Protection for the Public Demo — layered edge / nginx / app gating | Accepted | 2026-07-09 |
 
 ## Phase 4 — AI Agent Integration
 

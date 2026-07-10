@@ -13,7 +13,7 @@ Mortgage quote and lead-generation platform: a borrower-facing React app, a sepa
 - **Pluggable security** — self-issued HMAC JWTs or OIDC (Keycloak), plus service-to-service JWTs validated on issuer/audience/scope/type.
 - **Cloud deploy kit** — full stack on one Oracle Always-Free ARM instance behind an outbound Cloudflare Tunnel (no inbound ports), via a prod compose override + runbook ([ADR-0055](./docs/adr/phase-3-scale-and-operations/0055-oracle-cloud-cloudflare-tunnel-deployment.md)).
 - **Tested** — JUnit unit tests plus **Testcontainers integration tests** (real Redpanda + MySQL) across the services, frontend unit tests, and a Playwright E2E suite in CI.
-- **Decision-driven** — 55 [ADRs](./docs/adr) capture the design reasoning behind the system.
+- **Decision-driven** — 56 [ADRs](./docs/adr) capture the design reasoning behind the system.
 
 ## Tech Stack
 **Backend:** Java 17/21, Spring Boot, Spring AI (MCP), MyBatis · **Data:** MySQL, Redis · **Messaging:** RabbitMQ (work queues) + Kafka/Redpanda (event stream), via a broker-agnostic transport · **Observability:** OpenTelemetry, Grafana (Tempo/Loki/Prometheus) · **AI:** Model Context Protocol, any OpenAI-compatible LLM (Ollama, OpenAI, …) · **Auth:** JWT, OIDC/Keycloak, API keys · **Frontend:** React, Vite · **Infra:** Docker Compose, Nginx, Cloudflare Tunnel, Oracle Cloud, Jenkins CI

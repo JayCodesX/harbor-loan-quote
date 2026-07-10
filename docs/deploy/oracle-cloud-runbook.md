@@ -131,6 +131,30 @@ ingress and put it behind Cloudflare Access first.)
 
 ---
 
+## Hardening the public demo (ADR-0056)
+
+Layered anti-abuse. The nginx limits ship in `default.tunnel.conf`; the rest is
+Cloudflare dashboard config (free tier), done once after the tunnel is live.
+
+**Already in the deploy** (no action): general `/api/` capped at 8 r/s, `/api/auth/`
+capped at 1 r/s; MCP stays API-key + Bucket4j gated (keep `HARBOR_MCP_RPM` modest and
+never publish the key).
+
+**At Cloudflare (dashboard):**
+1. **Bot Fight Mode** — Security → Bots → enable. Blocks known automated traffic.
+2. **Rate-limiting rule** — Security → WAF → Rate limiting rules → add one on
+   `http.request.uri.path contains "/api/"`, ~10 requests / minute / IP, action Block.
+3. **Access on the admin app** — Zero Trust → Access → Applications → add
+   `oraroute.com/admin*`, policy = allow your email (one-time PIN or Google). The admin
+   panel is never public; grant a reviewer temporary access by adding their email.
+4. **(Optional) Turnstile** on the quote + register forms — add only if spam appears;
+   it needs a small frontend + verify change.
+5. Keep the tunnel DNS records **proxied** (orange cloud) — the default — so these
+   controls actually sit in front of the origin.
+
+To make the whole demo private instead (e.g. a closed review window), add a single
+Cloudflare Access application over the apex `oraroute.com` — one change, no redeploy.
+
 ## Operations
 
 | Task | Command |
