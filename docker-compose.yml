@@ -350,6 +350,24 @@ services:
       retries: 15
       start_period: 10s
 
+  # Grafana OTel-LGTM: the whole observability backend in one container —
+  # Grafana (UI), Tempo (traces), Loki (logs), Prometheus/Mimir (metrics),
+  # OTLP-ready (ADR-0030). Services export OTLP to :4318; view traces at :3000.
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: mortgage-loan-otel-lgtm
+    mem_limit: 1200m
+    ports:
+      - "3000:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
   localstack:
     profiles: ["integration"]
     image: localstack/localstack:3.8

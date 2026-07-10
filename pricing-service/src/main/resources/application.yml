@@ -21,6 +21,13 @@ spring:
   # Kafka/Redpanda — rate-change event stream (ADR-0052). Only exercised when
   # app.kafka.enabled=true; otherwise no producer sends and no listeners run.
   kafka:
+    # observation-enabled makes Spring Kafka create producer/consumer spans AND
+    # inject/extract the trace context into message headers — so a rate-change
+    # trace continues across the broker into the audit + SSE consumers (ADR-0030).
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -96,6 +103,18 @@ management:
     web:
       exposure:
         include: health,info
+  # Observability (ADR-0030). Vendor-neutral: we emit OTLP; the backend (local
+  # otel-lgtm, or Grafana Cloud in prod) is only an endpoint change.
+  tracing:
+    sampling:
+      # Record every trace in dev so nothing is missed while demonstrating.
+      # In production this drops to a small fraction (e.g. 0.05).
+      probability: ${MANAGEMENT_TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      # otel-lgtm's OTLP/HTTP receiver. Overridden to http://otel-lgtm:4318/...
+      # when running inside docker-compose.
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
 
 server:
   port: 8084
