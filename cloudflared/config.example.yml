@@ -1,0 +1,39 @@
+# Cloudflare Tunnel ingress for Harbor (ADR-0055).
+#
+# Copy to cloudflared/config.yml and set your tunnel id. The tunnel runs OUTBOUND
+# from the Oracle instance to Cloudflare, so no inbound ports are opened and the
+# OCI security list stays closed — Cloudflare terminates TLS and forwards over the
+# tunnel to these in-network services.
+#
+# Setup (on the instance, once):
+#   cloudflared tunnel login
+#   cloudflared tunnel create harbor
+#   cloudflared tunnel route dns harbor oraroute.com
+#   cloudflared tunnel route dns harbor www.oraroute.com
+#   cloudflared tunnel route dns harbor pricing.oraroute.com
+#   # (optional) cloudflared tunnel route dns harbor grafana.oraroute.com
+# Then copy the generated ~/.cloudflared/<id>.json to cloudflared/credentials.json.
+
+tunnel: REPLACE_WITH_TUNNEL_ID
+credentials-file: /etc/cloudflared/credentials.json
+
+# Order matters — first match wins; the final catch-all returns 404.
+ingress:
+  # Web app + /api + /admin, all same-origin through the nginx edge.
+  - hostname: oraroute.com
+    service: http://edge-tunnel:80
+  - hostname: www.oraroute.com
+    service: http://edge-tunnel:80
+
+  # The agent-facing MCP server on its own subdomain, straight to pricing-service.
+  # Its own auth applies: the MCP gateway (API key + rate limit, ADR-0053) guards
+  # /sse and /mcp/**, and /internal/admin/** requires the RSA service token.
+  - hostname: pricing.oraroute.com
+    service: http://pricing-service:8084
+
+  # Optional: Grafana (traces/metrics). Put it behind Cloudflare Access before
+  # exposing publicly, or leave it commented and reach it via SSH tunnel instead.
+  # - hostname: grafana.oraroute.com
+  #   service: http://otel-lgtm:3000
+
+  - service: http_status:404

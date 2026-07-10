@@ -31,3 +31,9 @@ nginx/certs/*.pem
 # Python
 __pycache__/
 *.pyc
+
+# Production deploy secrets/config (templates .env.prod.example / config.example.yml are committed)
+.env.prod
+cloudflared/config.yml
+cloudflared/credentials.json
+cloudflared/*.json
