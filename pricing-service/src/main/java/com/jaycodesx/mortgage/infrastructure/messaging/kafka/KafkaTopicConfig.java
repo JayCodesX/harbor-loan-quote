@@ -2,7 +2,6 @@ package com.jaycodesx.mortgage.infrastructure.messaging.kafka;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
@@ -22,7 +21,6 @@ import org.springframework.kafka.config.TopicBuilder;
  * partition it is total. Replication factor 1 matches the single Redpanda node.
  */
 @Configuration
-@EnableConfigurationProperties(RateChangeStreamProperties.class)
 @ConditionalOnProperty(name = "app.kafka.enabled", havingValue = "true")
 public class KafkaTopicConfig {
 
