@@ -27,11 +27,16 @@ discover tools (MCP `tools/list`) → expose them to the model as function-calli
 tools → let the model choose and call them → execute via MCP `tools/call` against
 the real engine → model composes the answer from real results.
 
-1. **Model runtime: Ollama, with Ollama Cloud models.** The user runs
-   `ollama signin`; the local Ollama daemon then proxies `*-cloud` models (e.g.
-   `gpt-oss:120b-cloud`) on `localhost:11434`. The client talks only to localhost.
-   Any tool-capable local model (e.g. `llama3.1:8b`) works too by changing
-   `OLLAMA_MODEL`.
+1. **LLM access: the OpenAI Chat Completions standard, provider-agnostic.** The
+   client calls `{LLM_BASE_URL}/chat/completions` with `Authorization: Bearer
+   <LLM_API_KEY>` and a `model` — the three-part OpenAI contract. The vendor is
+   just the base URL, so the same code runs against local Ollama
+   (`http://localhost:11434/v1`), Ollama Cloud (`https://ollama.com/v1`), OpenAI,
+   Groq, Together, vLLM, OpenRouter, etc. by changing three env vars. This mirrors
+   the vendor-neutrality principle already used for observability (ADR-0030):
+   emit/consume a standard, make the provider configuration. The default is local
+   Ollama; `*-cloud` models work after `ollama signin` (the daemon handles cloud
+   auth, so any `LLM_API_KEY` value works locally).
 2. **Client transport: the raw MCP SSE protocol in Python standard library.** A
    background thread reads the SSE event stream and correlates JSON-RPC responses
    to requests by id; requests are POSTed to the session message endpoint. No pip
@@ -46,11 +51,13 @@ the real engine → model composes the answer from real results.
    documents every variable.
 
 ## Alternatives Considered
-1. **A hosted LLM API directly (OpenAI/Anthropic/Ollama Cloud REST) with a key in
-   the client.** Simple, but it puts a secret in the client's configuration and
-   couples the demo to one provider's billing. Rejected: `ollama signin` keeps the
-   token in the daemon and the client provider-agnostic (any Ollama-served model,
-   local or cloud).
+1. **Bind to one vendor's native SDK/API (e.g. Ollama's `/api/chat`, or Anthropic's
+   Messages API).** Simplest for that one provider, but locks the client to it and
+   needs a rewrite to switch. Rejected in favor of the OpenAI Chat Completions
+   standard, which every major provider (and Ollama itself, at `/v1`) speaks — the
+   client stays vendor-neutral. Local Ollama via `ollama signin` still works through
+   `localhost:11434/v1` with a dummy key, so the keyless-local convenience is kept
+   without giving up portability.
 2. **The official MCP Python/TypeScript SDK.** More idiomatic and less code, but it
    pulls a dependency tree (pydantic-core etc.) that needs a build toolchain, which
    was friction in this environment. Implementing the SSE transport directly also

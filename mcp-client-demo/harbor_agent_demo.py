@@ -9,7 +9,7 @@ engine as MCP tools (ADR-0051); this script is a client that lets a real model
 Flow:
   1. Open an MCP session to pricing-service over SSE and run the handshake.
   2. tools/list -> get the typed tool schemas the server advertises.
-  3. Hand those schemas to an Ollama model as function-calling tools.
+  3. Hand those schemas to the model as OpenAI function-calling tools.
   4. The model decides which tool(s) to call; we execute each via MCP tools/call
      against the REAL pricing engine and feed the result back.
   5. The model composes a final answer from the real numbers.
@@ -18,16 +18,26 @@ No pricing logic lives here — the model reasons, the engine prices. The point 
 that the agent's knowledge of "what it can do" comes entirely from MCP discovery,
 not hard-coding.
 
+Provider-agnostic: the LLM is reached over the **OpenAI Chat Completions standard**
+(`{base_url}/chat/completions`, `Authorization: Bearer <api_key>`, `model`). Any
+OpenAI-compatible provider works by changing three env vars — local Ollama, Ollama
+Cloud, OpenAI, Groq, Together, vLLM, OpenRouter, etc. The vendor is just the base URL.
+
 Dependencies: Python 3 standard library only (urllib, json, threading). No pip.
 
 Config — all via environment variables (loaded from a local .env if present, but a
 real env var always wins, so deployment just sets env vars):
-  MCP_BASE_URL   pricing-service base            (default http://localhost:8084)
-  MCP_API_KEY    X-API-Key for the MCP gateway    (REQUIRED — no default; credential)
-  OLLAMA_URL     Ollama server                    (default http://localhost:11434)
-  OLLAMA_MODEL   model name; a *-cloud tag works  (default gpt-oss:120b-cloud)
-                 after `ollama signin`. Ollama Cloud auth is handled by the local
-                 daemon — this script never sees an Ollama API key.
+  MCP_BASE_URL   pricing-service base             (default http://localhost:8084)
+  MCP_API_KEY    X-API-Key for the MCP gateway     (REQUIRED — no default; credential)
+  LLM_BASE_URL   OpenAI-compatible base URL        (default http://localhost:11434/v1)
+  LLM_API_KEY    bearer key for the LLM provider   (default "ollama"; real key elsewhere)
+  LLM_MODEL      model name                        (default gpt-oss:120b-cloud)
+
+  Examples (base_url / model):
+    local Ollama    http://localhost:11434/v1   gpt-oss:120b-cloud   (key: anything; `ollama signin` for cloud models)
+    Ollama Cloud    https://ollama.com/v1       gpt-oss:120b-cloud   (key: your Ollama Cloud key)
+    OpenAI          https://api.openai.com/v1   gpt-4o               (key: your OpenAI key)
+    Groq            https://api.groq.com/openai/v1  llama-3.3-70b-versatile
 
 Setup:
   cp .env.example .env    # then edit; or set the same vars in the environment
@@ -65,11 +75,15 @@ def _load_dotenv():
 
 _load_dotenv()
 
-# Everything is configuration — nothing pricing- or credential-specific is baked in.
+# MCP server (the pricing engine's agent boundary).
 MCP_BASE = os.environ.get("MCP_BASE_URL", "http://localhost:8084")
 MCP_KEY = os.environ.get("MCP_API_KEY")  # required; no default — it is a credential
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gpt-oss:120b-cloud")
+
+# LLM provider, addressed via the OpenAI Chat Completions standard. Swap providers
+# by changing these three — nothing else in the code is provider-specific.
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:11434/v1")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "ollama")
+LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-oss:120b-cloud")
 
 DEFAULT_PROMPT = (
     "I'm buying a $500,000 home with $100,000 down, and I'd take a conventional "
@@ -172,29 +186,38 @@ class McpSseClient:
         return json.dumps(result)
 
 
-def mcp_tools_to_ollama(tools):
-    """Translate MCP tool descriptors into Ollama function-calling tool specs."""
-    specs = []
-    for t in tools:
-        specs.append({
+def mcp_tools_to_openai(tools):
+    """
+    Translate MCP tool descriptors into OpenAI function-calling tool specs. MCP's
+    inputSchema is already JSON Schema, which is exactly what the OpenAI 'parameters'
+    field expects — so this is a straight remap, no schema translation.
+    """
+    return [
+        {
             "type": "function",
             "function": {
                 "name": t["name"],
                 "description": t.get("description", ""),
                 "parameters": t.get("inputSchema") or {"type": "object", "properties": {}},
             },
-        })
-    return specs
+        }
+        for t in tools
+    ]
 
 
-def ollama_chat(messages, tools):
-    payload = {"model": OLLAMA_MODEL, "messages": messages, "tools": tools, "stream": False}
+def llm_chat(messages, tools):
+    """One turn against any OpenAI-compatible Chat Completions endpoint."""
+    payload = {"model": LLM_MODEL, "messages": messages, "tools": tools, "stream": False}
     req = urllib.request.Request(
-        OLLAMA_URL + "/api/chat",
+        LLM_BASE_URL.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {LLM_API_KEY}",
+        },
     )
-    return json.loads(urllib.request.urlopen(req, timeout=180).read())
+    response = json.loads(urllib.request.urlopen(req, timeout=180).read())
+    return response["choices"][0]["message"]
 
 
 def main():
@@ -202,13 +225,13 @@ def main():
         sys.exit(
             "MCP_API_KEY is not set.\n"
             "  Local: copy .env.example to .env and fill it in.\n"
-            "  Deploy: set MCP_API_KEY (and MCP_BASE_URL, OLLAMA_URL, OLLAMA_MODEL) "
-            "as environment variables.\n"
+            "  Deploy: set MCP_API_KEY (and MCP_BASE_URL, LLM_BASE_URL, LLM_API_KEY, "
+            "LLM_MODEL) as environment variables.\n"
             "It must match one of pricing-service's HARBOR_MCP_API_KEYS."
         )
 
     prompt = " ".join(sys.argv[1:]).strip() or DEFAULT_PROMPT
-    print(f"\n{'='*70}\nMODEL: {OLLAMA_MODEL}   MCP: {MCP_BASE}\n{'='*70}")
+    print(f"\n{'='*70}\nLLM: {LLM_MODEL} @ {LLM_BASE_URL}\nMCP: {MCP_BASE}\n{'='*70}")
     print(f"\n[USER]\n{prompt}\n")
 
     mcp = McpSseClient(MCP_BASE, MCP_KEY)
@@ -217,29 +240,30 @@ def main():
     tools = mcp.list_tools()
     print(f"[MCP] discovered tools: {[t['name'] for t in tools]}\n")
 
-    ollama_tools = mcp_tools_to_ollama(tools)
+    openai_tools = mcp_tools_to_openai(tools)
     messages = [{"role": "user", "content": prompt}]
 
     for _turn in range(6):
-        response = ollama_chat(messages, ollama_tools)
-        message = response["message"]
-        messages.append(message)
+        message = llm_chat(messages, openai_tools)
+        messages.append(message)  # keep the assistant turn (incl. any tool_calls) in context
 
         tool_calls = message.get("tool_calls") or []
         if not tool_calls:
-            print(f"[AGENT — final answer]\n{message.get('content', '').strip()}\n")
+            print(f"[AGENT — final answer]\n{(message.get('content') or '').strip()}\n")
             return
 
         for call in tool_calls:
             fn = call["function"]
             name = fn["name"]
-            args = fn.get("arguments", {})
+            # OpenAI sends tool arguments as a JSON string.
+            args = fn.get("arguments") or "{}"
             if isinstance(args, str):
                 args = json.loads(args)
             print(f"  --> agent calls  {name}({json.dumps(args)})")
             result = mcp.call_tool(name, args)
             print(f"  <-- engine returns  {result}\n")
-            messages.append({"role": "tool", "content": result, "tool_name": name})
+            # OpenAI tool results must carry the tool_call_id they answer.
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
 
     print("[demo] hit the turn limit without a final answer")
 

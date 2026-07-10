@@ -38,13 +38,15 @@ here with no client change.
    ```
    (needs MySQL + Redis from `docker compose up -d mysql redis`.)
 
-2. **Ollama** with a tool-capable model. Two options:
+2. **A tool-capable LLM behind an OpenAI-compatible endpoint.** Any provider works
+   (see the table below); the default is local Ollama. Options:
    - **Ollama Cloud** (used here): `ollama signin`, then reference a `*-cloud`
      model, e.g. `gpt-oss:120b-cloud`. The local Ollama daemon proxies the cloud
-     model on `localhost:11434` after sign-in — this client never handles an API
-     key.
+     model on `localhost:11434` after sign-in.
    - **Local model**: `ollama pull llama3.1:8b` (or any tool-capable model) and
-     set `OLLAMA_MODEL=llama3.1:8b`.
+     set `LLM_MODEL=llama3.1:8b`.
+   - **A hosted provider** (OpenAI, Groq, …): set `LLM_BASE_URL`, `LLM_API_KEY`,
+     `LLM_MODEL` — no code change.
 
 ## Configuration (environment variables)
 
@@ -60,8 +62,25 @@ cp .env.example .env    # then edit .env  (.env is gitignored)
 |---|---|---|
 | `MCP_BASE_URL` | `http://localhost:8084` | pricing-service base URL (its public URL when deployed) |
 | `MCP_API_KEY` | **required** | `X-API-Key` for the MCP gateway (ADR-0053); must match a `HARBOR_MCP_API_KEYS` value. No default — it's a credential. |
-| `OLLAMA_URL` | `http://localhost:11434` | Ollama server |
-| `OLLAMA_MODEL` | `gpt-oss:120b-cloud` | any tool-capable local or `*-cloud` model |
+| `LLM_BASE_URL` | `http://localhost:11434/v1` | OpenAI-compatible base URL for the LLM provider |
+| `LLM_API_KEY` | `ollama` | bearer key for the provider (any value for local Ollama; a real key elsewhere) |
+| `LLM_MODEL` | `gpt-oss:120b-cloud` | model name (must support tool calling) |
+
+### Provider-agnostic by design
+
+The LLM is reached over the **OpenAI Chat Completions standard**
+(`{LLM_BASE_URL}/chat/completions`, `Authorization: Bearer <LLM_API_KEY>`, `LLM_MODEL`).
+Nothing in the code is tied to one vendor — swap providers with three env vars:
+
+| Provider | `LLM_BASE_URL` | `LLM_MODEL` |
+|---|---|---|
+| Local Ollama | `http://localhost:11434/v1` | `gpt-oss:120b-cloud` |
+| Ollama Cloud | `https://ollama.com/v1` | `gpt-oss:120b-cloud` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+
+For an Ollama `*-cloud` model, run `ollama signin` once so the local daemon can
+reach it; then any value for `LLM_API_KEY` works locally.
 
 ## Run
 
