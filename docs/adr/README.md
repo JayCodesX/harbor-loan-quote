@@ -46,6 +46,7 @@ ADRs are grouped by delivery phase:
 |----|-------|--------|------|
 | [0051](./phase-4-ai-integration/0051-expose-pricing-via-mcp.md) | Expose the Pricing Engine to AI Agents via a Model Context Protocol (MCP) Server | Accepted | 2026-07-09 |
 | [0053](./phase-4-ai-integration/0053-secure-and-rate-limit-the-mcp-boundary.md) | Secure and Rate-Limit the Agent-Facing MCP Boundary — API Key + Bucket4j | Accepted | 2026-07-09 |
+| [0054](./phase-4-ai-integration/0054-mcp-client-agent-demo.md) | MCP Client Demo — an LLM Agent Calling the Pricing Tools (Ollama) | Accepted | 2026-07-09 |
 
 ---
 
