@@ -1,7 +1,7 @@
 # ADR 0030: Observability — OpenTelemetry + Grafana vs. AWS X-Ray vs. Datadog
 
 ## Status
-Accepted
+Accepted — implemented for tracing (pricing-service + notification-service).
 
 Originally drafted in Phase 1 and deferred to production readiness. Activated in
 2026-07 because the AI-agent (MCP) and event-stream (Kafka) work in ADR-0051 and
@@ -9,7 +9,31 @@ ADR-0052 introduces distributed call paths that are only debuggable with
 end-to-end tracing, making observability a now-concern rather than a later one.
 
 ## Date
-2026-04-02 (drafted) · 2026-07-09 (activated)
+2026-04-02 (drafted) · 2026-07-09 (activated) · 2026-07-09 (tracing implemented)
+
+## Implementation Notes (2026-07-09)
+Distributed tracing is wired and verified locally against the `grafana/otel-lgtm`
+container:
+
+- **Instrumentation:** `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-otlp`
+  in pricing-service and notification-service. JDBC query spans via
+  `datasource-micrometer`. Kafka producer/consumer spans and cross-broker context
+  propagation via `spring.kafka.{template,listener}.observation-enabled=true`.
+- **Backend:** one `otel-lgtm` container (Grafana :3000, OTLP :4317/:4318). Services
+  emit OTLP to `${OTLP_TRACING_ENDPOINT}`; dev sampling is 1.0.
+- **Verified — the two flows this ADR exists for:**
+  1. A rate-sheet activation is **one trace** spanning
+     `http /internal/admin/rate-sheets → JDBC → Kafka send → audit consumer (+ its JDBC)`,
+     and the trace context propagates over the Kafka headers into
+     **notification-service's** SSE consumer under the same trace id (confirmed both
+     in Tempo and by the matching trace id in notification-service's logs).
+  2. An agent MCP call produces an `http /mcp/message` server span.
+- **Known nuance:** Spring AI executes an MCP `@Tool` on a worker thread, not the
+  HTTP request thread, so JDBC spans from *inside* a tool are emitted as their own
+  (context-linked) traces rather than children of the `/mcp/message` server span.
+  The synchronous admin/pricing paths keep DB spans as children as expected. Full
+  in-tool span linkage would need explicit context propagation to the tool executor
+  — noted, not yet done.
 
 ## Phase
 3 — Scale and Operations
