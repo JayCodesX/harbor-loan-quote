@@ -36,9 +36,14 @@ the real engine → model composes the answer from real results.
    background thread reads the SSE event stream and correlates JSON-RPC responses
    to requests by id; requests are POSTed to the session message endpoint. No pip
    dependencies.
-3. **Credentials: never handled by the client.** Cloud auth is done once by the
-   user via `ollama signin` (browser); the local daemon holds the token. The MCP
-   API key comes from the `MCP_API_KEY` env var. The client stores/sees no secret.
+3. **Credentials: never handled by the client, fully env-driven.** Cloud auth is
+   done once by the user via `ollama signin` (browser); the local daemon holds the
+   token. All config (base URL, model, and the MCP API key) comes from environment
+   variables, loaded from a local `.env` (gitignored) for convenience but always
+   overridable by a real env var — so deployment (Oracle Cloud) just sets env vars.
+   The `MCP_API_KEY` is **required with no default**: nothing insecure is baked in,
+   and the client exits with guidance if it is unset. A committed `.env.example`
+   documents every variable.
 
 ## Alternatives Considered
 1. **A hosted LLM API directly (OpenAI/Anthropic/Ollama Cloud REST) with a key in

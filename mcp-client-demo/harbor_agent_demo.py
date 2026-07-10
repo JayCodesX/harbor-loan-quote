@@ -20,14 +20,17 @@ not hard-coding.
 
 Dependencies: Python 3 standard library only (urllib, json, threading). No pip.
 
-Config (all via env, with sane local defaults):
+Config — all via environment variables (loaded from a local .env if present, but a
+real env var always wins, so deployment just sets env vars):
   MCP_BASE_URL   pricing-service base            (default http://localhost:8084)
-  MCP_API_KEY    X-API-Key for the MCP gateway    (default test-key-123)
-  OLLAMA_URL     local Ollama server              (default http://localhost:11434)
+  MCP_API_KEY    X-API-Key for the MCP gateway    (REQUIRED — no default; credential)
+  OLLAMA_URL     Ollama server                    (default http://localhost:11434)
   OLLAMA_MODEL   model name; a *-cloud tag works  (default gpt-oss:120b-cloud)
-                 after `ollama signin`. Secrets are handled by the local Ollama
-                 daemon after signin — this script never sees an API key.
+                 after `ollama signin`. Ollama Cloud auth is handled by the local
+                 daemon — this script never sees an Ollama API key.
 
+Setup:
+  cp .env.example .env    # then edit; or set the same vars in the environment
 Usage:
   python3 harbor_agent_demo.py ["your question about a mortgage"]
 """
@@ -39,8 +42,32 @@ import threading
 import time
 import urllib.request
 
+
+def _load_dotenv():
+    """
+    Load KEY=VALUE lines from a .env file next to this script into the environment,
+    without overriding variables that are already set. This keeps config out of the
+    code: locally, copy .env.example -> .env; on a deployment (e.g. Oracle Cloud),
+    set real environment variables and skip the file entirely (real env wins).
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.exists(path):
+        return
+    with open(path) as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            # setdefault: a real environment variable always takes precedence.
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv()
+
+# Everything is configuration — nothing pricing- or credential-specific is baked in.
 MCP_BASE = os.environ.get("MCP_BASE_URL", "http://localhost:8084")
-MCP_KEY = os.environ.get("MCP_API_KEY", "test-key-123")
+MCP_KEY = os.environ.get("MCP_API_KEY")  # required; no default — it is a credential
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gpt-oss:120b-cloud")
 
@@ -171,6 +198,15 @@ def ollama_chat(messages, tools):
 
 
 def main():
+    if not MCP_KEY:
+        sys.exit(
+            "MCP_API_KEY is not set.\n"
+            "  Local: copy .env.example to .env and fill it in.\n"
+            "  Deploy: set MCP_API_KEY (and MCP_BASE_URL, OLLAMA_URL, OLLAMA_MODEL) "
+            "as environment variables.\n"
+            "It must match one of pricing-service's HARBOR_MCP_API_KEYS."
+        )
+
     prompt = " ".join(sys.argv[1:]).strip() or DEFAULT_PROMPT
     print(f"\n{'='*70}\nMODEL: {OLLAMA_MODEL}   MCP: {MCP_BASE}\n{'='*70}")
     print(f"\n[USER]\n{prompt}\n")
